@@ -1,4 +1,4 @@
-# Fall Detection
+# Fall-Detection-POC
 
 A Streamlit interface for classifying still images with the trained ResNet50
 fall-detection model.
