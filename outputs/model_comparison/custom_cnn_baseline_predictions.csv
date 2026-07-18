@@ -1,0 +1,362 @@
+actual_label,predicted_label,fall_probability,actual_class,predicted_class
+0,0,0.49737492,No Fall,No Fall
+0,0,0.45767456,No Fall,No Fall
+0,0,0.45332018,No Fall,No Fall
+0,0,0.46131203,No Fall,No Fall
+0,0,0.4620602,No Fall,No Fall
+0,0,0.457306,No Fall,No Fall
+0,0,0.4575519,No Fall,No Fall
+0,0,0.39085132,No Fall,No Fall
+0,0,0.4509393,No Fall,No Fall
+0,0,0.45195994,No Fall,No Fall
+0,0,0.4527765,No Fall,No Fall
+0,0,0.4535999,No Fall,No Fall
+0,0,0.46696824,No Fall,No Fall
+0,0,0.39470983,No Fall,No Fall
+0,0,0.39330834,No Fall,No Fall
+0,0,0.39788386,No Fall,No Fall
+0,0,0.39913097,No Fall,No Fall
+0,0,0.39794326,No Fall,No Fall
+0,0,0.39866897,No Fall,No Fall
+0,0,0.42515725,No Fall,No Fall
+0,0,0.4189281,No Fall,No Fall
+0,0,0.42183438,No Fall,No Fall
+0,0,0.4126004,No Fall,No Fall
+0,0,0.40919274,No Fall,No Fall
+0,0,0.40739822,No Fall,No Fall
+0,0,0.40390858,No Fall,No Fall
+0,0,0.4182535,No Fall,No Fall
+0,0,0.41326123,No Fall,No Fall
+0,0,0.38741684,No Fall,No Fall
+0,0,0.40993932,No Fall,No Fall
+0,0,0.43374458,No Fall,No Fall
+0,0,0.43958443,No Fall,No Fall
+0,0,0.4349004,No Fall,No Fall
+0,0,0.45249888,No Fall,No Fall
+0,0,0.4184879,No Fall,No Fall
+0,0,0.41937625,No Fall,No Fall
+0,0,0.49926102,No Fall,No Fall
+0,0,0.45921078,No Fall,No Fall
+0,0,0.45571572,No Fall,No Fall
+0,0,0.46262828,No Fall,No Fall
+0,0,0.46471015,No Fall,No Fall
+0,0,0.458885,No Fall,No Fall
+0,0,0.45923272,No Fall,No Fall
+0,0,0.38919762,No Fall,No Fall
+0,0,0.4518052,No Fall,No Fall
+0,0,0.4526285,No Fall,No Fall
+0,0,0.45356134,No Fall,No Fall
+0,0,0.45520133,No Fall,No Fall
+0,0,0.46497706,No Fall,No Fall
+0,0,0.39404395,No Fall,No Fall
+0,0,0.39332047,No Fall,No Fall
+0,0,0.3992721,No Fall,No Fall
+0,0,0.39994836,No Fall,No Fall
+0,0,0.39885655,No Fall,No Fall
+0,0,0.4012097,No Fall,No Fall
+0,0,0.42696393,No Fall,No Fall
+0,0,0.42102945,No Fall,No Fall
+0,0,0.42058524,No Fall,No Fall
+0,0,0.4127974,No Fall,No Fall
+0,0,0.40973836,No Fall,No Fall
+0,0,0.4075194,No Fall,No Fall
+0,0,0.40408516,No Fall,No Fall
+0,0,0.41884547,No Fall,No Fall
+0,0,0.41709062,No Fall,No Fall
+0,0,0.38311017,No Fall,No Fall
+0,0,0.4113224,No Fall,No Fall
+0,0,0.43428123,No Fall,No Fall
+0,0,0.4396656,No Fall,No Fall
+0,0,0.43912572,No Fall,No Fall
+0,0,0.4549949,No Fall,No Fall
+0,0,0.4250632,No Fall,No Fall
+0,0,0.42159072,No Fall,No Fall
+0,0,0.4982114,No Fall,No Fall
+0,0,0.41198358,No Fall,No Fall
+0,0,0.3213527,No Fall,No Fall
+0,0,0.36742684,No Fall,No Fall
+0,0,0.32695246,No Fall,No Fall
+0,0,0.36327678,No Fall,No Fall
+0,0,0.35934687,No Fall,No Fall
+0,0,0.4144395,No Fall,No Fall
+0,0,0.45520043,No Fall,No Fall
+0,1,0.6133422,No Fall,Fall
+0,0,0.34767693,No Fall,No Fall
+0,0,0.40046465,No Fall,No Fall
+0,0,0.41406897,No Fall,No Fall
+0,0,0.34088418,No Fall,No Fall
+0,1,0.61484706,No Fall,Fall
+0,0,0.33299124,No Fall,No Fall
+0,0,0.46903086,No Fall,No Fall
+0,0,0.33576843,No Fall,No Fall
+0,0,0.3303051,No Fall,No Fall
+0,1,0.60235095,No Fall,Fall
+0,1,0.68894565,No Fall,Fall
+0,0,0.33379942,No Fall,No Fall
+0,0,0.40206447,No Fall,No Fall
+0,0,0.34394053,No Fall,No Fall
+0,0,0.33612874,No Fall,No Fall
+0,0,0.357482,No Fall,No Fall
+0,0,0.32853565,No Fall,No Fall
+0,0,0.32700768,No Fall,No Fall
+0,0,0.47897658,No Fall,No Fall
+0,0,0.42035478,No Fall,No Fall
+0,0,0.32943693,No Fall,No Fall
+0,0,0.48531857,No Fall,No Fall
+0,1,0.51136863,No Fall,Fall
+0,1,0.5412971,No Fall,Fall
+0,0,0.43409246,No Fall,No Fall
+0,0,0.3143407,No Fall,No Fall
+0,1,0.55711395,No Fall,Fall
+0,0,0.41591156,No Fall,No Fall
+0,0,0.34473866,No Fall,No Fall
+0,0,0.3396503,No Fall,No Fall
+0,0,0.4114019,No Fall,No Fall
+0,0,0.4744929,No Fall,No Fall
+0,0,0.32251078,No Fall,No Fall
+0,0,0.38630578,No Fall,No Fall
+0,0,0.47559378,No Fall,No Fall
+0,0,0.47498482,No Fall,No Fall
+0,0,0.35347906,No Fall,No Fall
+0,0,0.3552287,No Fall,No Fall
+0,0,0.3537908,No Fall,No Fall
+0,0,0.4027845,No Fall,No Fall
+0,0,0.32021987,No Fall,No Fall
+0,0,0.4794316,No Fall,No Fall
+0,0,0.3618354,No Fall,No Fall
+0,0,0.41054362,No Fall,No Fall
+0,0,0.36131597,No Fall,No Fall
+0,0,0.33365992,No Fall,No Fall
+0,0,0.4326898,No Fall,No Fall
+0,0,0.32177156,No Fall,No Fall
+0,0,0.49498743,No Fall,No Fall
+0,0,0.35012892,No Fall,No Fall
+0,1,0.5528802,No Fall,Fall
+0,0,0.32778352,No Fall,No Fall
+0,1,0.5748023,No Fall,Fall
+0,0,0.4571912,No Fall,No Fall
+0,0,0.3223545,No Fall,No Fall
+0,0,0.32297888,No Fall,No Fall
+0,0,0.39907062,No Fall,No Fall
+0,0,0.4099619,No Fall,No Fall
+0,0,0.4349235,No Fall,No Fall
+0,0,0.33681446,No Fall,No Fall
+0,1,0.62473834,No Fall,Fall
+0,1,0.5954156,No Fall,Fall
+0,0,0.32351854,No Fall,No Fall
+0,0,0.3345034,No Fall,No Fall
+0,1,0.59443665,No Fall,Fall
+0,0,0.30506516,No Fall,No Fall
+0,0,0.28852558,No Fall,No Fall
+0,0,0.401752,No Fall,No Fall
+0,0,0.3357839,No Fall,No Fall
+0,0,0.36187196,No Fall,No Fall
+0,1,0.5259403,No Fall,Fall
+0,0,0.3177645,No Fall,No Fall
+0,0,0.32821608,No Fall,No Fall
+0,1,0.5547634,No Fall,Fall
+0,0,0.31936857,No Fall,No Fall
+0,0,0.45027125,No Fall,No Fall
+0,0,0.37113205,No Fall,No Fall
+0,0,0.413293,No Fall,No Fall
+0,0,0.38433406,No Fall,No Fall
+0,0,0.3123894,No Fall,No Fall
+0,0,0.3158628,No Fall,No Fall
+0,0,0.45641035,No Fall,No Fall
+0,1,0.53295827,No Fall,Fall
+0,1,0.59203565,No Fall,Fall
+0,0,0.4500288,No Fall,No Fall
+0,1,0.67590994,No Fall,Fall
+0,0,0.43699026,No Fall,No Fall
+0,0,0.30919322,No Fall,No Fall
+0,0,0.32603905,No Fall,No Fall
+0,0,0.3228733,No Fall,No Fall
+0,0,0.43459907,No Fall,No Fall
+0,0,0.34658197,No Fall,No Fall
+0,1,0.77541274,No Fall,Fall
+0,0,0.3420196,No Fall,No Fall
+0,1,0.50600207,No Fall,Fall
+0,0,0.33878666,No Fall,No Fall
+0,0,0.34789348,No Fall,No Fall
+0,0,0.34386733,No Fall,No Fall
+0,0,0.37829605,No Fall,No Fall
+0,0,0.32463336,No Fall,No Fall
+0,0,0.32389963,No Fall,No Fall
+0,1,0.5413407,No Fall,Fall
+0,0,0.42592308,No Fall,No Fall
+0,0,0.33751717,No Fall,No Fall
+0,0,0.445415,No Fall,No Fall
+0,0,0.32049698,No Fall,No Fall
+0,0,0.32142147,No Fall,No Fall
+0,0,0.3183017,No Fall,No Fall
+0,0,0.41625223,No Fall,No Fall
+0,0,0.37559694,No Fall,No Fall
+0,0,0.41562304,No Fall,No Fall
+0,0,0.31027222,No Fall,No Fall
+0,0,0.3351281,No Fall,No Fall
+0,1,0.53989863,No Fall,Fall
+0,0,0.43832144,No Fall,No Fall
+0,0,0.41813627,No Fall,No Fall
+0,0,0.41693914,No Fall,No Fall
+0,0,0.4176636,No Fall,No Fall
+0,0,0.41589347,No Fall,No Fall
+0,1,0.53681636,No Fall,Fall
+0,0,0.41514897,No Fall,No Fall
+0,0,0.42100558,No Fall,No Fall
+0,1,0.5194807,No Fall,Fall
+0,0,0.40081024,No Fall,No Fall
+0,0,0.4118971,No Fall,No Fall
+0,0,0.4101547,No Fall,No Fall
+0,1,0.5325351,No Fall,Fall
+0,0,0.4167527,No Fall,No Fall
+0,0,0.41629496,No Fall,No Fall
+0,0,0.40385503,No Fall,No Fall
+0,0,0.40756524,No Fall,No Fall
+0,0,0.3949102,No Fall,No Fall
+0,0,0.39457494,No Fall,No Fall
+1,0,0.39282086,Fall,No Fall
+1,0,0.3963713,Fall,No Fall
+1,0,0.39707464,Fall,No Fall
+1,0,0.39493626,Fall,No Fall
+1,0,0.39830106,Fall,No Fall
+1,0,0.39764255,Fall,No Fall
+1,0,0.39459914,Fall,No Fall
+1,0,0.3978977,Fall,No Fall
+1,0,0.39733386,Fall,No Fall
+1,0,0.40130734,Fall,No Fall
+1,0,0.39584354,Fall,No Fall
+1,0,0.3921654,Fall,No Fall
+1,0,0.39532354,Fall,No Fall
+1,0,0.397543,Fall,No Fall
+1,0,0.40137517,Fall,No Fall
+1,0,0.39549097,Fall,No Fall
+1,0,0.39097455,Fall,No Fall
+1,0,0.39274952,Fall,No Fall
+1,0,0.39137834,Fall,No Fall
+1,0,0.39358574,Fall,No Fall
+1,0,0.39610347,Fall,No Fall
+1,0,0.40075764,Fall,No Fall
+1,0,0.40250587,Fall,No Fall
+1,0,0.4028341,Fall,No Fall
+1,0,0.4028901,Fall,No Fall
+1,0,0.4031613,Fall,No Fall
+1,0,0.4018654,Fall,No Fall
+1,0,0.40095463,Fall,No Fall
+1,0,0.4395591,Fall,No Fall
+1,0,0.44325453,Fall,No Fall
+1,0,0.4431615,Fall,No Fall
+1,0,0.4437584,Fall,No Fall
+1,0,0.44336075,Fall,No Fall
+1,0,0.44198662,Fall,No Fall
+1,0,0.4388272,Fall,No Fall
+1,0,0.4421837,Fall,No Fall
+1,0,0.43949664,Fall,No Fall
+1,0,0.3970479,Fall,No Fall
+1,0,0.39788267,Fall,No Fall
+1,0,0.39499646,Fall,No Fall
+1,0,0.3984965,Fall,No Fall
+1,0,0.400148,Fall,No Fall
+1,0,0.39785966,Fall,No Fall
+1,0,0.3969709,Fall,No Fall
+1,0,0.39963657,Fall,No Fall
+1,0,0.40009138,Fall,No Fall
+1,0,0.3981895,Fall,No Fall
+1,0,0.39693534,Fall,No Fall
+1,0,0.39307898,Fall,No Fall
+1,0,0.39663425,Fall,No Fall
+1,0,0.40005663,Fall,No Fall
+1,0,0.4009244,Fall,No Fall
+1,0,0.39669913,Fall,No Fall
+1,0,0.39356786,Fall,No Fall
+1,0,0.3932621,Fall,No Fall
+1,0,0.3928845,Fall,No Fall
+1,0,0.39528266,Fall,No Fall
+1,0,0.39834562,Fall,No Fall
+1,0,0.40257993,Fall,No Fall
+1,0,0.40240267,Fall,No Fall
+1,0,0.40290907,Fall,No Fall
+1,0,0.40432206,Fall,No Fall
+1,0,0.40439364,Fall,No Fall
+1,0,0.40487903,Fall,No Fall
+1,0,0.40362224,Fall,No Fall
+1,0,0.40607533,Fall,No Fall
+1,0,0.44364077,Fall,No Fall
+1,0,0.44506434,Fall,No Fall
+1,0,0.4452206,Fall,No Fall
+1,0,0.44553834,Fall,No Fall
+1,0,0.4434564,Fall,No Fall
+1,0,0.4406022,Fall,No Fall
+1,0,0.43958005,Fall,No Fall
+1,0,0.4390212,Fall,No Fall
+1,0,0.44328526,Fall,No Fall
+1,0,0.3786713,Fall,No Fall
+1,0,0.29195923,Fall,No Fall
+1,0,0.35897505,Fall,No Fall
+1,0,0.32285392,Fall,No Fall
+1,0,0.3584886,Fall,No Fall
+1,0,0.36773068,Fall,No Fall
+1,0,0.3642537,Fall,No Fall
+1,0,0.3234297,Fall,No Fall
+1,0,0.36663875,Fall,No Fall
+1,0,0.3473531,Fall,No Fall
+1,0,0.36351353,Fall,No Fall
+1,0,0.33663407,Fall,No Fall
+1,0,0.34029517,Fall,No Fall
+1,0,0.3908813,Fall,No Fall
+1,0,0.43365672,Fall,No Fall
+1,0,0.3824832,Fall,No Fall
+1,0,0.3226912,Fall,No Fall
+1,0,0.3411342,Fall,No Fall
+1,0,0.3301005,Fall,No Fall
+1,0,0.3215154,Fall,No Fall
+1,0,0.34344167,Fall,No Fall
+1,0,0.31450605,Fall,No Fall
+1,1,0.5027496,Fall,Fall
+1,0,0.3049818,Fall,No Fall
+1,0,0.32660642,Fall,No Fall
+1,0,0.35987064,Fall,No Fall
+1,0,0.36452246,Fall,No Fall
+1,0,0.32805273,Fall,No Fall
+1,0,0.49172166,Fall,No Fall
+1,0,0.40863106,Fall,No Fall
+1,0,0.33992818,Fall,No Fall
+1,0,0.46530622,Fall,No Fall
+1,1,0.5436419,Fall,Fall
+1,0,0.33646005,Fall,No Fall
+1,0,0.35387987,Fall,No Fall
+1,1,0.5449876,Fall,Fall
+1,0,0.3491746,Fall,No Fall
+1,0,0.3962386,Fall,No Fall
+1,1,0.5802827,Fall,Fall
+1,1,0.5571188,Fall,Fall
+1,0,0.36807272,Fall,No Fall
+1,1,0.5725002,Fall,Fall
+1,1,0.6080874,Fall,Fall
+1,0,0.39879766,Fall,No Fall
+1,1,0.5218881,Fall,Fall
+1,0,0.40495935,Fall,No Fall
+1,0,0.41416425,Fall,No Fall
+1,0,0.33137938,Fall,No Fall
+1,0,0.35963517,Fall,No Fall
+1,0,0.35250998,Fall,No Fall
+1,0,0.42446023,Fall,No Fall
+1,1,0.60018575,Fall,Fall
+1,0,0.4056275,Fall,No Fall
+1,1,0.5920423,Fall,Fall
+1,1,0.5914786,Fall,Fall
+1,0,0.48024487,Fall,No Fall
+1,0,0.39765394,Fall,No Fall
+1,1,0.58670634,Fall,Fall
+1,1,0.5874845,Fall,Fall
+1,1,0.5762538,Fall,Fall
+1,1,0.5220184,Fall,Fall
+1,0,0.4654774,Fall,No Fall
+1,0,0.4852344,Fall,No Fall
+1,0,0.48143077,Fall,No Fall
+1,0,0.4710492,Fall,No Fall
+1,0,0.4752271,Fall,No Fall
+1,0,0.48070428,Fall,No Fall
+1,0,0.48272863,Fall,No Fall
+1,0,0.47887143,Fall,No Fall
+1,0,0.40510225,Fall,No Fall
+1,0,0.4062178,Fall,No Fall

@@ -1,0 +1,17 @@
+MODEL COMPARISON
+======================================================================
+
+      Model  Accuracy  Fall Precision  Fall Recall  Fall F1-Score
+ Custom CNN     57.06           38.46        10.27          16.22
+MobileNetV3     69.81           58.77        84.93          69.47
+   ResNet50     88.09           78.45        97.26          86.85
+
+BEST MODEL
+======================================================================
+ResNet50
+
+Reasons:
+- Highest accuracy: 88.09%
+- Highest fall recall: 97.26%
+- Highest fall F1-score: 86.85%
+- Only 4 actual falls were missed

@@ -1,0 +1,9 @@
+image_path,actual_class,predicted_class,confidence,raw_score,save_path,observation,category
+../data/processed/val/fall\fdc_rgb_0609.png,Fall,Fall,0.9004315733909607,0.9004315733909607,..\outputs\gradcam\correct_fall_1.png,"Focused on lower body, legs and floor-contact region.",Correct Fall
+../data/processed/val/fall/fdc_rgb_0753.png,Fall,Fall,0.797802209854126,0.797802209854126,..\outputs\gradcam\correct_fall_2.png,Focused mainly on the torso and lower limbs.,Correct Fall
+../data/processed/val/no_fall\fdc_rgb_0145.png,No Fall,No Fall,0.5861496329307556,0.4138503670692444,..\outputs\gradcam\correct_no_fall_1.png,Attention was concentrated on the upright human posture.,Correct No Fall
+../data/processed/val/no_fall\fdc_rgb_0217.png,No Fall,No Fall,0.8094450086355209,0.19055499136447906,..\outputs\gradcam\correct_no_fall_2.png,Model focused on the person rather than background objects.,Correct No Fall
+../data/processed/val/no_fall\fdc_rgb_0073.png,No Fall,Fall,0.5721755027770996,0.5721755027770996,..\outputs\gradcam\false_positive_1.png,Horizontal posture and nearby floor influenced the false alert.,False Positive
+../data/processed/val/no_fall\fdc_rgb_0109.png,No Fall,Fall,0.7303372621536255,0.7303372621536255,..\outputs\gradcam\false_positive_2.png,Background or furniture may have contributed to the false prediction.,False Positive
+../data/processed/val/fall\orig_fall019.jpg,Fall,No Fall,0.5890102088451385,0.41098979115486145,..\outputs\gradcam\false_negative_1.png,Important body regions received limited attention.,False Negative
+../data/processed/val/fall\orig_fall022.jpg,Fall,No Fall,0.7235869467258453,0.27641305327415466,..\outputs\gradcam\false_negative_2.png,Occlusion or unusual posture may have caused the missed fall.,False Negative

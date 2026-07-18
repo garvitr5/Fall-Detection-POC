@@ -1,0 +1,11 @@
+Actual_Label,Raw_Fall_Probability,Calibrated_Fall_Probability,Predicted_Label,Actual_Class,Predicted_Class,Prediction_Type
+1,0.04156796,0.049249702661824414,0,Fall,No Fall,False Negative
+1,0.2308336,0.2431509648174251,0,Fall,No Fall,False Negative
+1,0.2727745,0.2839226948413188,0,Fall,No Fall,False Negative
+1,0.36926174,0.376347481638985,0,Fall,No Fall,False Negative
+1,0.38333336,0.3897144044813705,0,Fall,No Fall,False Negative
+1,0.40142447,0.40687040886088555,0,Fall,No Fall,False Negative
+1,0.45228708,0.45497274360661594,0,Fall,No Fall,False Negative
+1,0.4544877,0.45705079800246684,0,Fall,No Fall,False Negative
+1,0.46712598,0.46898187438357225,0,Fall,No Fall,False Negative
+1,0.46737593,0.4692177684078889,0,Fall,No Fall,False Negative

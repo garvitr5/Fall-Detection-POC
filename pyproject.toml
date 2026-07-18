@@ -1,0 +1,23 @@
+[project]
+name = "fall-detection"
+version = "0.1.0"
+description = "Fall detection image classification project"
+authors = [
+    { name = "Your Name", email = "you@example.com" }
+]
+license = "MIT"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "tensorflow>=2.16,<3.0",
+    "numpy>=1.26,<2.0",
+    "pandas>=2.2,<3.0",
+    "matplotlib>=3.8,<4.0",
+    "seaborn>=0.13,<1.0",
+    "pillow>=10.4,<11.0",
+    "scikit-learn>=1.9,<2.0",
+    "ipykernel>=6.29,<7.0"
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

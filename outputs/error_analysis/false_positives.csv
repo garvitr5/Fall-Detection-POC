@@ -1,0 +1,2 @@
+Actual_Label,Raw_Fall_Probability,Calibrated_Fall_Probability,Predicted_Label,Actual_Class,Predicted_Class,Prediction_Type
+0,0.7352279,0.7238222129237744,1,No Fall,Fall,False Positive

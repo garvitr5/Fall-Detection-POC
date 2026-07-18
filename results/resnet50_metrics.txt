@@ -1,0 +1,17 @@
+RESNET50 CLASSIFICATION REPORT
+========================================
+
+              precision    recall  f1-score   support
+
+     No Fall     0.9778    0.8186    0.8911       215
+        Fall     0.7845    0.9726    0.8685       146
+
+    accuracy                         0.8809       361
+   macro avg     0.8812    0.8956    0.8798       361
+weighted avg     0.8996    0.8809    0.8820       361
+
+
+RESNET50 CONFUSION MATRIX
+========================================
+[[176  39]
+ [  4 142]]

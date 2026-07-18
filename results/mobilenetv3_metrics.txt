@@ -1,0 +1,17 @@
+MOBILENETV3 CLASSIFICATION REPORT
+========================================
+
+              precision    recall  f1-score   support
+
+     No Fall     0.8533    0.5953    0.7014       215
+        Fall     0.5877    0.8493    0.6947       146
+
+    accuracy                         0.6981       361
+   macro avg     0.7205    0.7223    0.6980       361
+weighted avg     0.7459    0.6981    0.6987       361
+
+
+MOBILENETV3 CONFUSION MATRIX
+========================================
+[[128  87]
+ [ 22 124]]

@@ -1,0 +1,4 @@
+Model,True_Negative_Baseline,False_Positive_Baseline,False_Negative_Baseline,True_Positive_Baseline,True_Negative_Tuned,False_Positive_Tuned,False_Negative_Tuned,True_Positive_Tuned,True_Negative_Change,False_Positive_Change,False_Negative_Change,True_Positive_Change
+Custom CNN,191,24,131,15,131,84,66,80,-60,60,-65,65
+MobileNetV3,128,87,22,124,152,63,16,130,24,-24,-6,6
+ResNet50,176,39,4,142,212,3,23,123,36,-36,19,-19
