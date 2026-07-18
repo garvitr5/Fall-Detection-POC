@@ -1,0 +1,1031 @@
+# Human Fall Detection: Complete Project Interview Guide
+
+> Evidence basis: repository state and saved artifacts reviewed on 2026-07-19. Labels marked **Verified** are directly supported by code/output. **Inference** means a reasoned interpretation. **Future work** means not implemented. This is an academic prototype, not a certified safety system.
+
+## 1. Executive Project Overview
+
+### What was built
+
+**Verified:** A binary RGB still-image classifier that maps one image to a sigmoid score interpreted as `P(Fall)`. The intended convention is `0 = No Fall`, `1 = Fall`. It is classification, not object detection, segmentation, tracking, pose estimation, or temporal video understanding. The app accepts uploads and camera snapshots, but each snapshot is classified independently.
+
+**One line:** I compared a Custom CNN, MobileNetV3, and ResNet50 for still-image fall classification, tuned and explained the best model, analyzed calibration and errors, and deployed an interactive Streamlit dashboard.
+
+**30 seconds:** I combined three image sources into 1,123 training and 361 validation images, enforced an explicit No Fall/Fall label convention, and trained a Custom CNN plus ImageNet-pretrained MobileNetV3Small and ResNet50. The tuned ResNet50 achieved 92.80% validation accuracy, 97.62% fall precision, 84.25% recall, 90.44% F1, and 99.01% ROC-AUC. I then investigated probability direction, calibrated confidence with temperature scaling, analyzed false positives and negatives, generated Grad-CAM overlays, and built a multipage Streamlit dashboard deployed through GitHub and Community Cloud.
+
+**Two minutes:** The project addresses fall recognition from a single RGB frame. I first audited three sources: an annotated Fall Dataset, frame sequences from falldataset.com, and selected HAR activities used as hard No Fall negatives. I built deterministic train/validation folders and explicitly passed `class_names=["no_fall", "fall"]` during normal training because alphabetical directory indexing otherwise produces the opposite order. I tested a from-scratch CNN, MobileNetV3Small, and ResNet50. Transfer models used ImageNet features; tuned training froze each backbone first, then unfroze the last 30 layers while leaving BatchNorm frozen and lowering Adam's learning rate to `1e-5`. ResNet50 gave the strongest overall discrimination. A separate error-analysis notebook exposed a dangerous label/probability inversion: ROC-AUC near zero led me to trace the mapping and confirm the sigmoid was already `P(Fall)`. I split probabilities into 180 calibration and 181 evaluation examples, searched temperature values, and inspected confidence errors and Grad-CAM attention. Finally, I built a cached Streamlit app with upload/camera inference, artifact-backed project pages, light/dark themes, Git LFS model storage, and Community Cloud deployment. The honest limitation is that a still image cannot model motion and there is no person detector or emergency workflow.
+
+### End-to-end flow
+
+```mermaid
+flowchart LR
+  A[Raw Fall + FDC + HAR sources] --> B[EDA and leakage checks]
+  B --> C[Processed train/val folders]
+  C --> D[Custom CNN baseline]
+  C --> E[MobileNetV3 baseline]
+  C --> F[ResNet50 baseline]
+  D & E & F --> G[Common comparison]
+  G --> H[Tuned two-phase training]
+  H --> I[Evaluation and calibration]
+  I --> J[Error analysis and Grad-CAM]
+  J --> K[Streamlit + GitHub + Community Cloud]
+```
+
+Target users are interviewers/researchers and prototype evaluators. Production caregivers would require temporal evidence, person detection, external validation, alert escalation, privacy controls, monitoring, and certification.
+
+## 2. Complete Project Folder Structure
+
+```text
+Fall Detection/
+|-- data/                         # local processed train/val images; Git-ignored
+|-- dataset/                      # local raw source datasets; Git-ignored
+|-- histories/hyperparameter_training/
+|   |-- tuned_custom_cnn.csv
+|   |-- tuned_mobilenetv3_phase1.csv
+|   |-- tuned_mobilenetv3_phase2.csv
+|   |-- tuned_resnet50_phase1.csv
+|   `-- tuned_resnet50_phase2.csv
+|-- models/                       # local baselines/tuned checkpoints; Git-ignored
+|-- notebooks/
+|   |-- 01_EDA.ipynb
+|   |-- 03_Error_Analysis.ipynb
+|   |-- 04_GradCAM_Analysis.ipynb
+|   |-- 05_Baseline_Model_Comparison.ipynb
+|   |-- 06_Hyperparameter_Training.ipynb
+|   |-- blur_leakage_test.ipynb
+|   |-- custom_cnn_training.ipynb
+|   |-- model_comparison.ipynb
+|   |-- model_training.ipynb
+|   `-- resnet50_training.ipynb
+|-- outputs/
+|   |-- error_analysis/           # calibration/error CSVs and plots
+|   |-- gradcam/                  # eight overlays and result tables
+|   `-- model_comparison/         # baseline/tuned metrics and matrices
+|-- results/                      # earlier baseline reports/curves
+|-- scripts/run_error_analysis.py
+|-- streamlit_app/
+|   |-- assets/                   # four deployment-safe example images
+|   |-- model/final_resnet50.keras
+|   |-- app.py
+|   `-- requirements.txt
+|-- .gitattributes                # Keras model tracked by Git LFS
+|-- .gitignore
+|-- .streamlit/config.toml
+|-- pyproject.toml / poetry.lock  # broader research environment
+`-- README.md
+```
+
+### Notebook order and overlap
+
+1. `01_EDA.ipynb`: source inspection, merge/build logic, class counts, perceptual-hash duplicate checks.
+2. `blur_leakage_test.ipynb`: blurred-feature leakage/bias probe.
+3. `custom_cnn_training.ipynb`, `model_training.ipynb`, `resnet50_training.ipynb`: baseline development. `model_training.ipynb` contains exploratory and MobileNet sections, so it overlaps other training notebooks.
+4. `05_Baseline_Model_Comparison.ipynb`: common 361-image evaluation, timing, sizes, tuned comparison.
+5. `06_Hyperparameter_Training.ipynb`: unified tuned architectures and two-phase transfer training.
+6. `03_Error_Analysis.ipynb`: corrected mapping, calibration split, metrics, FP/FN tables.
+7. `04_GradCAM_Analysis.ipynb`: saved visual explanations.
+8. `model_comparison.ipynb`: small earlier summary over `results/model_comparison.csv`; largely superseded by notebook 05.
+
+### Model artifact audit
+
+| Artifact | Bytes | Meaning |
+|---|---:|---|
+| `best_custom_cnn.keras` | 5,167,877 | baseline best checkpoint |
+| `baseline_mobilenetv3.keras` / `best_mobilenetv3.keras` | 4,352,332 | baseline MobileNet variants |
+| `best_resnet50.keras` / `final_resnet50.keras` | 95,055,966 | baseline-style frozen ResNet artifact |
+| `tuned_custom_cnn.keras` | 5,173,647 | tuned CNN, 422,881 params |
+| `tuned_mobilenetv3_phase1.keras` | 5,238,954 | frozen MobileNet phase checkpoint |
+| `tuned_mobilenetv3.keras` | 9,914,467 | tuned MobileNet, 1,013,105 params |
+| `tuned_resnet50_phase1.keras` | 101,334,879 | frozen ResNet phase checkpoint |
+| `tuned_resnet50.keras` | 216,777,434 | tuned ResNet, 24,112,513 params |
+
+> **Critical inconsistency:** `streamlit_app/model/final_resnet50.keras` is loaded by deployment and identifies as `resnet50_fall_detection` with 23,589,761 parameters. It is not the 24,112,513-parameter `tuned_resnet50.keras` whose 92.80% metrics are shown by the dashboard. The live model and headline tuned metrics therefore do not refer to the same artifact.
+
+## 3. Dataset
+
+### Sources and construction
+
+`01_EDA.ipynb` confirms three local sources:
+
+- `dataset/Fall Dataset/fall_dataset`: 374 original train images and 111 original validation images with YOLO text labels. Class ID `0` was set as Fall after a manual review step; IDs 1/2 became No Fall.
+- `dataset/fall_dataset_com`: double-nested RGB sequences with `labels.csv`. Class 3 (lying) became Fall; 1/2/4 became No Fall; 0/5/6 were dropped. Frames were subsampled to reduce near-identical temporal neighbors.
+- `dataset/HAR`: selected `sleeping`, `sitting`, `using_laptop`, `running`, `eating`, and `texting` images supplied No Fall/hard-negative examples with an 80/20 split.
+
+The final local counts are:
+
+| Split | No Fall | Fall | Total |
+|---|---:|---:|---:|
+| Train | 684 | 439 | 1,123 |
+| Validation | 215 | 146 | 361 |
+| Total | 899 | 585 | 1,484 |
+
+One intermediate cell reported 147 validation falls; the current folder and all final evaluation outputs contain 146, suggesting one image was removed after the initial build. A separate held-out test directory is **not confirmed from the final training pipeline**. Calibration uses a split of validation probabilities, not an independent test dataset.
+
+### Mapping bug
+
+TensorFlow sorts inferred directory names alphabetically:
+
+```python
+val_ds = tf.keras.utils.image_dataset_from_directory(
+    VAL_DIR, label_mode="binary", shuffle=False
+)
+# class_names -> ['fall', 'no_fall']; therefore fall=0, no_fall=1
+```
+
+Normal training avoided ambiguity:
+
+```python
+CLASS_NAMES = ["no_fall", "fall"]
+train_ds = tf.keras.utils.image_dataset_from_directory(
+    TRAIN_DIR, class_names=CLASS_NAMES, label_mode="binary", ...
+)
+```
+
+In error analysis, the notebook used inferred order and explicitly remapped labels:
+
+```python
+y_true = 1 - dataset_labels       # project: No Fall=0, Fall=1
+raw_probabilities = model_probabilities  # already P(Fall), do not invert
+```
+
+Safe verification: print `dataset.class_names`; inspect one known file per folder; check label counts; test known predictions; calculate AUC with both `p` and `1-p`. A wrong mapping swaps TP/TN semantics, inverts precision/recall, and can make an excellent ranking look like ROC-AUC near zero.
+
+## 4. EDA
+
+Implemented operations include filesystem/source inspection (`os.listdir`, `Path.rglob`), CSV filtering (`pd.read_csv`, `isin`, `sample`, `concat`), deterministic shuffling, class counts, sample visualization, file-format filtering, perceptual hashing, and a blurred-image probe.
+
+- `Image.open` decodes an image; `convert("RGB")` forces three channels.
+- `Path.rglob("*")` recursively enumerates files.
+- `Counter` summarizes label/source frequency.
+- `imagehash.phash` creates a perceptual hash robust to small visual changes.
+- Hamming distance `val_hash - train_hash <= 4` marked 41 candidate pairs: 1 exact, 5 distance 2, 35 distance 4. The notebook created placeholder absolute paths for confirmed removals; the exact manual removal decision is **not confirmed**. Current validation has one fewer Fall image than the earlier build.
+- The blur test applied RGB resize to 64x64, Gaussian blur radius 12, downsample to 16x16, `/255`, flatten to 768 features, then balanced logistic regression. Validation accuracy was 55.40%; balanced accuracy was 49.04%, near chance. This argues against an easy global color/background shortcut in those heavily blurred features, but does not prove absence of leakage.
+- Corrupt-image validation is not clearly implemented as a complete try/except audit in the saved EDA notebook. **Not confirmed from the available project files.**
+
+EDA influenced explicit class weights, augmentation, source subsampling, duplicate review, and the decision to compare transfer learning against a small CNN.
+
+## 5. Image Preprocessing
+
+### Training path
+
+```text
+disk image -> TensorFlow decode -> resize 224x224 RGB
+-> batch (B,224,224,3) -> train-only augmentation -> model preprocessing
+-> backbone -> sigmoid
+```
+
+`image_dataset_from_directory` returns float image tensors and binary labels. Training datasets shuffle with seed 42; validation does not shuffle so predictions align with labels. `prefetch(tf.data.AUTOTUNE)` overlaps input preparation with model compute.
+
+Tuned augmentation is horizontal flip, rotation factor 0.05, zoom 0.10, contrast 0.10. Custom CNN adds `Rescaling(1/255)`. MobileNetV3Small uses `include_preprocessing=True`. Tuned ResNet uses a serializable `ResNet50Preprocessing` layer calling `tf.keras.applications.resnet50.preprocess_input`.
+
+The baseline ResNet training code applies `preprocess_input(x)` inside the functional graph between augmentation and backbone. Its loaded top-level layer list does not expose a named preprocessing layer, but predictions accept raw 0-255 pixels; do not add another external transform without graph-level verification.
+
+### Streamlit path
+
+```python
+display_image = ImageOps.exif_transpose(image).convert("RGB")
+resized = display_image.resize((224, 224), Image.Resampling.LANCZOS)
+batch = np.expand_dims(np.asarray(resized, dtype=np.float32), axis=0)
+```
+
+Shape: `(W,H)` source -> `(224,224,3)` -> `(1,224,224,3)`. The batch dimension is required because Keras predicts over batches. Wrong RGB/BGR order changes channel semantics; wrong size violates the input contract; `uint8`/float scale mismatch changes activation distributions; double preprocessing produces invalid values.
+
+## 6. Libraries and Frameworks
+
+| Tool | Type | Actual use | Strength / limitation |
+|---|---|---|---|
+| Python | language | all orchestration | readable ecosystem / runtime-version compatibility matters |
+| TensorFlow | DL framework | datasets, tensors, gradients, models | integrated training/deployment / heavy dependency |
+| Keras | neural-network API | layers, Applications, callbacks, save/load | concise / serialization version-sensitive |
+| NumPy | numerical library | arrays, logits, sigmoid, clipping | fast vectorization / memory-resident |
+| Pandas | data library | CSVs, filtering, tables | expressive tabular work / not tensor training engine |
+| Matplotlib | plotting library | curves, matrices, overlays | flexible / static and verbose |
+| Seaborn | plotting library | heatmap matrices | clean statistical defaults / extra dependency |
+| scikit-learn | ML/evaluation library | metrics, splits, class weights, logistic probe | trusted metrics / not deep-learning framework |
+| Pillow | image library | decode, RGB, resize, blur | simple / no tensor acceleration |
+| imagehash | image utility | perceptual duplicate candidates | robust similarity / threshold needs review |
+| tqdm | progress utility | hashing/feature loops | visibility / notebook noise |
+| pathlib | standard library | portable paths | cross-platform / must resolve correct base |
+| json | standard library | baseline histories | portable / no schema |
+| time | standard library | training/inference timing | simple / warm-up affects benchmarks |
+| Streamlit | web-app framework | dashboard and inference UI | rapid delivery / rerun model and hosted limits |
+| Git | version control | local history/branches | reproducibility / large binaries unsuitable |
+| GitHub | hosting platform | remote source/deploy integration | collaboration / 100 MiB normal Git object limit |
+| Git LFS | binary storage extension | deployed `.keras` file | stores pointer in Git / quota and tooling required |
+
+OpenCV and Joblib are not imported by the reviewed project code. VS Code use is contextual, not encoded as a runtime dependency.
+
+## 7. Deep Learning Fundamentals Used
+
+- **Pixel/channel:** an RGB image is a height x width x 3 tensor of red/green/blue intensities.
+- **Batch:** several images processed together, e.g. `(16,224,224,3)`, improves hardware utilization and stabilizes gradient estimates.
+- **Epoch:** one pass over the training dataset.
+- **Forward pass:** convolution/backbone transforms pixels to features; the head maps features to a logit; sigmoid maps it to `[0,1]`.
+- **Weights/biases:** trainable parameters. A convolution kernel slides shared weights spatially; a dense layer combines all incoming features.
+- **Feature map:** one channel encoding where a learned pattern occurs. Early maps detect edges/textures; deeper maps encode limbs, posture, object/layout cues.
+- **Pooling:** reduces spatial resolution. Max pooling keeps strong local activations; global average pooling averages each final channel to one value and drastically reduces head parameters.
+- **ReLU:** `max(0,x)` introduces nonlinearity and keeps positive activation.
+- **Sigmoid:** `sigma(z)=1/(1+e^-z)` converts one logit into `P(Fall)`.
+- **Loss:** binary cross-entropy measures probability error. Backpropagation applies the chain rule to compute `dLoss/dWeight`.
+- **Adam:** adaptive gradient descent using moving first/second moments.
+- **Generalization:** performance on unseen validation data. A widening train/validation gap suggests overfitting; poor results on both suggest underfitting.
+
+## 8. Custom CNN
+
+The tuned architecture processes data in this order:
+
+```text
+224x224x3 -> augmentation -> /255
+-> Conv3x3(32)+BN+ReLU+MaxPool
+-> Conv3x3(64)+BN+ReLU+MaxPool
+-> Conv3x3(128)+BN+ReLU+MaxPool
+-> Conv3x3(256)+BN+ReLU+MaxPool
+-> GlobalAveragePooling -> Dense(128, ReLU, L2=1e-4)
+-> Dropout(0.40) -> Dense(1, sigmoid)
+```
+
+Parameter count: **422,881**. Conv parameter intuition: `3*3*input_channels*filters` when bias is disabled; BatchNorm adds learned scale/offset and running statistics. Pooling halves spatial dimensions approximately: 224 -> 112 -> 56 -> 28 -> 14. GAP turns `14x14x256` into 256. Dense 256x128 plus bias gives 32,896 parameters.
+
+Baseline training used batch 16, max 20 epochs, Adam `1e-3`, BCE, class weights, checkpoint/early stopping on `val_loss`; it stopped after 6 and restored epoch 1. Unified tuned training used batch 32, max 30, L2 and `val_pr_auc` monitoring.
+
+Baseline result: 57.06% accuracy and only 10.27% Fall recall. Tuned result: 58.45% accuracy, 48.78% precision, 54.79% recall, 51.61% F1, ROC-AUC 59.13%. It learned some positive separation after tuning but remained far below pretrained models. Likely reasons are only 1,123 training images, high visual diversity, and limited learned representations. This is an **inference**, not a proven causal ablation.
+
+## 9. MobileNetV3
+
+The project uses **MobileNetV3Small**, `include_top=False`, ImageNet weights, input 224x224x3, and built-in preprocessing. The tuned head is GAP -> Dense 128 ReLU with L2 -> Dropout 0.30 -> sigmoid. Total parameters: **1,013,105**. It first freezes the backbone; phase two enables its last 30 layers but keeps BatchNorm frozen.
+
+MobileNet reduces compute with depthwise separable convolution: one spatial filter per input channel followed by a 1x1 pointwise convolution to mix channels. Inverted residual blocks expand channels, apply depthwise convolution, then project back; suitable shapes use shortcuts. MobileNetV3 also uses squeeze-and-excitation channel reweighting and hardware-aware nonlinearities such as hard-swish. These are properties of the selected Keras architecture, not custom layers written here.
+
+Tuned full-validation metrics: 78.12% accuracy, 67.36% Fall precision, 89.04% recall, 76.70% F1, 89.81% ROC-AUC. It is the better edge candidate because it is much smaller and faster than ResNet, but its precision/accuracy lag.
+
+## 10. ResNet50
+
+`tf.keras.applications.ResNet50(include_top=False, weights="imagenet", input_shape=(224,224,3))` removes ImageNet's 1,000-class head and keeps its convolutional backbone. Residual blocks learn `F(x)` and output `y=F(x)+x`; the identity path lets gradients bypass difficult transformations, reducing degradation in deep networks.
+
+Tuned path: augmentation -> named ResNet preprocessing -> backbone -> GAP -> Dense 256 ReLU/L2 -> Dropout 0.40 -> sigmoid. Total params: **24,112,513**. Phase one freezes all 175 backbone layers. Phase two selects the last 30, but keeps BatchNorm frozen, leaving 21 backbone layers trainable. Adam drops from `1e-3` to `1e-5`.
+
+Why it won: best tuned accuracy (92.80%), precision (97.62%), F1 (90.44%), ROC-AUC (99.01%), PR-AUC (98.51%), and only 3 false positives. Its recall (84.25%) is lower than baseline ResNet (97.26%), so selection emphasizes overall discrimination and precision rather than maximum sensitivity.
+
+**Simple interview answer:** ResNet50 reused robust ImageNet features and its skip connections made deep features trainable; it separated falls best on this validation set.
+
+**Technical answer:** The residual backbone supplies high-capacity hierarchical representations, GAP regularizes the head, class-weighted BCE handles imbalance, and limited low-LR fine-tuning adapts high-level features while limiting catastrophic forgetting.
+
+## 11. Transfer Learning and Fine-Tuning
+
+ImageNet is the source task; Fall/No Fall is the target. A **backbone** extracts features; a new **head** learns the target decision. `backbone.trainable=False` removes its weights from gradient updates, stabilizing head learning on a small dataset. Later unfreezing adapts higher-level features. A `1e-5` LR limits destructive updates; BatchNorm remains frozen to avoid noisy running statistics with small batches.
+
+Exact tuned strategy: maximum 15 frozen epochs plus maximum 15 fine-tuning epochs; callbacks can stop earlier. MobileNet and ResNet unfreeze the last 30 nominal backbone layers. ResNet has 21 actually trainable after BatchNorm exclusions. Transfer can fail under severe domain shift, misleading pretrained features, or excessive fine-tuning.
+
+## 12. Hyperparameters
+
+| Setting | Tuned CNN | Tuned MobileNetV3 | Tuned ResNet50 |
+|---|---:|---:|---:|
+| Input | 224x224x3 | 224x224x3 | 224x224x3 |
+| Batch | 32 | 32 | 16 |
+| Max epochs | 30 | 15+15 | 15+15 |
+| Adam head LR | 1e-3 | 1e-3 | 1e-3 |
+| Fine-tune LR | n/a | 1e-5 | 1e-5 |
+| Loss | BCE | BCE | BCE |
+| Dropout | 0.40 | 0.30 | 0.40 |
+| L2 | 1e-4 | 1e-4 | 1e-4 |
+| Threshold | 0.50 | 0.50 | 0.50 |
+| Seed | 42 | 42 | 42 |
+| Augmentation | flip; rotate .05; zoom .10; contrast .10 | same | same |
+| Class weights | 0:.8209, 1:1.2790 | same | same |
+
+Batch 16 reduces ResNet memory demand. Too-large LR can diverge/forget; too-small LR is slow. Too much dropout underfits; too little overfits. A 0.5 threshold follows sigmoid convention but is not safety-optimized. Reasons for exact augmentation magnitudes are **not confirmed from the available project files**; they are plausible conservative transforms.
+
+Callbacks: checkpoint `val_pr_auc` max; early stop `val_pr_auc` max, patience 5, `min_delta=.001`, restore best; ReduceLROnPlateau monitors `val_loss`, factor .2, patience 2, floor `1e-7`; CSVLogger persists history.
+
+## 13. Loss, Optimizer, and Callbacks
+
+Binary cross-entropy is
+
+`L = -[y log(p) + (1-y) log(1-p)]`.
+
+If an actual Fall has `p=.01`, `-log(.01)=4.605`, so confident wrong predictions are punished heavily. Adam maintains momentum-like first moments and squared-gradient second moments, then normalizes updates. It is a practical default for noisy minibatches, though SGD may sometimes generalize better.
+
+- `ModelCheckpoint(save_best_only=True)` prevents later epochs overwriting the best validation state.
+- `EarlyStopping(restore_best_weights=True)` saves compute and rolls back overfit epochs.
+- `ReduceLROnPlateau` makes finer steps when validation loss stalls.
+- `CSVLogger` solves the later-notebook `history` problem by persisting metrics.
+
+## 14. Class Imbalance and Class Weights
+
+Train counts are 684 No Fall and 439 Fall. Balanced formula:
+
+`w_c = N / (K*n_c)`
+
+so `w_NoFall=1123/(2*684)=0.8209` and `w_Fall=1123/(2*439)=1.2790`. Keras multiplies each example's loss by its class weight; missing Falls contribute more gradient. Benefits: no duplicated data and easy integration. Risks: poorer probability calibration or more false positives. Alternatives include stratified sampling, oversampling, focal loss, targeted augmentation, and threshold tuning.
+
+## 15. Training Pipeline
+
+1. Resolve root paths with `Path`.
+2. Load explicit class order and resize/batch datasets.
+3. Shuffle training only; prefetch both.
+4. Calculate class weights.
+5. Build augmentation and architecture.
+6. Compile with Adam, BCE, accuracy/precision/recall/ROC-AUC/PR-AUC.
+7. `model.fit(train, validation_data=val, epochs=..., class_weight=..., callbacks=...)`.
+8. Save best checkpoint/history.
+9. For transfer models, unfreeze final layers, freeze BatchNorm, recompile at lower LR, continue with `initial_epoch`.
+10. Predict validation in deterministic order; threshold; evaluate; save tables/models.
+
+`fit()` returns `History`; `history.history` maps metric names to one value per epoch. An evaluation notebook that only calls `load_model()` never creates `history`, hence the documented `NameError`. Load CSV/JSON history instead.
+
+## 16. Training Curves
+
+Available artifacts include `results/baseline_accuracy.png`, `baseline_loss.png`, `baseline_recall.png`, `resnet50_accuracy_curve.png`, `resnet50_loss_curve.png`, two JSON histories, and five tuned CSV histories. The Streamlit training page dynamically plots tuned `accuracy/val_accuracy` and `loss/val_loss`.
+
+Interpretation: both improving with a small gap is healthy; train improving while validation worsens is overfitting; both low is underfitting; oscillation suggests LR/batch noise; exploding loss suggests instability. ResNet fine-tuning reached its best saved PR-AUC early (epoch 17) and stopped at epoch 22, restoring epoch 17.
+
+## 17. Baseline and Tuned Comparison
+
+### Full 361-image validation set, threshold 0.50
+
+| Model | Stage | Acc | Fall Prec | Fall Recall | Fall F1 | ROC-AUC | PR-AUC | TN/FP/FN/TP |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| Custom CNN | baseline | 57.06% | 38.46% | 10.27% | 16.22% | 47.15% | 38.16% | 191/24/131/15 |
+| MobileNetV3 | baseline | 69.81% | 58.77% | 84.93% | 69.47% | 80.91% | 71.65% | 128/87/22/124 |
+| ResNet50 | baseline | 88.09% | 78.45% | 97.26% | 86.85% | 97.70% | 96.59% | 176/39/4/142 |
+| Custom CNN | tuned | 58.45% | 48.78% | 54.79% | 51.61% | 59.13% | 47.41% | 131/84/66/80 |
+| MobileNetV3 | tuned | 78.12% | 67.36% | 89.04% | 76.70% | 89.81% | 84.01% | 152/63/16/130 |
+| ResNet50 | tuned | 92.80% | 97.62% | 84.25% | 90.44% | 99.01% | 98.51% | 212/3/23/123 |
+
+Baseline measured sizes/speeds on the local CPU: CNN 4.93 MB/6.81 ms, MobileNet 4.15 MB/6.97 ms, ResNet 90.65 MB/33.96 ms per image. Tuned inference timing/size is not saved in the tuned metrics table. Accuracy alone hides the safety trade-off: tuned ResNet sharply reduces false alerts but misses more Falls than baseline.
+
+## 18. Metrics
+
+| Metric | Formula | Fall interpretation | Main limitation |
+|---|---|---|---|
+| TP | actual 1, predicted 1 | detected Fall | none alone |
+| TN | actual 0, predicted 0 | correct No Fall | none alone |
+| FP | actual 0, predicted 1 | false alarm | alert fatigue |
+| FN | actual 1, predicted 0 | missed Fall | highest safety risk |
+| Accuracy | `(TP+TN)/N` | overall correctness | can hide imbalance |
+| Precision | `TP/(TP+FP)` | trustworthiness of alerts | ignores missed Falls |
+| Recall | `TP/(TP+FN)` | fraction of Falls caught | ignores false alarms |
+| Specificity | `TN/(TN+FP)` | fraction of No Falls cleared | ignores missed Falls |
+| F1 | `2PR/(P+R)` | balance of alert trust/capture | hides TN |
+| ROC-AUC | area TPR vs FPR | ranking quality across thresholds | optimistic under imbalance |
+| PR-AUC | area precision vs recall | positive-class ranking | baseline depends on prevalence |
+| Log-loss | mean BCE | probability quality | outlier-sensitive by design |
+| RMSE | `sqrt(mean((p-y)^2))` | probability distance | less harsh than log-loss |
+
+A confusion matrix counts decisions; a classification report derives per-class precision/recall/F1/support. Example tuned ResNet accuracy `(212+123)/361=.92798`; precision `123/(123+3)=.97619`; recall `123/(123+23)=.84247`.
+
+## 19. Confusion Matrices and Scope
+
+Full tuned ResNet: `[[212,3],[23,123]]` on all 361 validation images. Baseline ResNet: `[[176,39],[4,142]]`. Calibration evaluation: `[[107,1],[10,63]]` on 181 examples after a stratified 50/50 split of full validation probabilities. Rows are actual `[No Fall,Fall]`; columns are predicted `[No Fall,Fall]` after mapping correction. Do not present the 181-example matrix as independent test performance or compare raw counts without denominators.
+
+## 20. Label Mapping and Probability Direction Case Study
+
+**Symptom:** inferred class order was `['fall','no_fall']`; treating model output as `P(No Fall)` and inverting it produced ROC-AUC around 0.0098.
+
+**Incorrect:** `fall_probability = 1 - model_output` merely because directory index 0 was Fall.
+
+**Correct:** labels and score semantics are separate:
+
+```python
+# directory labels: fall=0, no_fall=1
+y_true = 1 - dataset_labels
+# trained model used explicit no_fall=0, fall=1; output is already P(Fall)
+raw_probabilities = model_probabilities
+```
+
+AUC near zero means positive examples are systematically ranked below negatives; `AUC(1-p)=1-AUC(p)` (ignoring ties), so reversal is a powerful diagnostic. The bug was dangerous because it could label confident Falls as safe. Prevent it with explicit class names, serialized label metadata, known-sample unit tests, printed class maps, and a single named `predict_fall_probability` contract.
+
+## 21. Temperature Scaling and Calibration
+
+The complete temperature-scaling method and verified result are given below and expanded in Chapter 22. Calibration fits confidence, not class ranking: `T>1` softens logits, `T<1` sharpens them, and a positive temperature does not change ROC-AUC/PR-AUC ordering. This project searched `.10` through `5.00` on 180 validation-derived calibration examples; the supported optimum is `T=1.06`. The app-facing `T=5.0` summary conflicts with that evidence.
+
+### Related error-analysis context
+
+`03_Error_Analysis.ipynb` evaluates the tuned ResNet50, builds per-image predictions, and inspects false positives and false negatives. After the corrected label mapping, the full validation set contains 3 false positives and 23 false negatives at threshold 0.50. A later stratified calibration/evaluation split contains 1 FP and 10 FN in its 181-image evaluation half.
+
+Good error analysis groups failures by cause rather than merely displaying them: unusual poses, occlusion, blur, camera angle, background, tiny subject, transitional motion, label ambiguity, and domain/source. This repository saves FP/FN tables, but it does not provide a completed, independently reviewed taxonomy for every error. A production study should add reviewer agreement, source-level slices, confidence bands, and repeated-subject or video-level grouping.
+
+Threshold selection is a product decision. Lowering the threshold generally catches more Falls but raises false alerts. For an emergency system, select it against an explicit maximum miss rate or an expected-cost function, then validate on untouched data. The current 0.50 is a conventional default, not a proven operating optimum.
+
+## 22. RMSE and Log-Loss
+
+Calibration asks whether predictions stated at probability `p` are correct about `p` of the time. Discrimination (ROC/PR-AUC) and calibration are different: a model can rank perfectly yet be overconfident. Temperature scaling fits one scalar `T` to logits:
+
+```text
+z = log(p / (1-p))
+p_calibrated = sigmoid(z / T)
+```
+
+`T>1` softens confidence; `T<1` sharpens it. The notebook clips probabilities before the logit, searches `T=0.10..5.00` in steps of 0.01 on 180 validation-derived calibration samples, and then evaluates on the remaining 181. The search artifact and notebook identify `T=1.06`, calibration log-loss `0.213134`. On evaluation, calibration slightly worsened RMSE (`.227533` to `.229481`) and log-loss (`.173721` to `.176790`); accuracy/F1/AUC were essentially unchanged. Therefore the honest conclusion is **temperature scaling did not improve this split**.
+
+RMSE is `sqrt(mean((p-y)^2))`; it measures typical probability distance in label units. Log-loss is `-mean(y log p + (1-y) log(1-p))`; it penalizes confident errors much more strongly. Neither is an accuracy measure, and lower is better. The before/after values above must be quoted only for the 181-image calibration evaluation half.
+
+`results/temperature_summary.csv` instead reports `T=5.0` and conflicts with the search output. The Streamlit app reads this stale summary, so its displayed calibration value is not trustworthy until regenerated. Temperature fitting also reused the validation set; a proper train/calibration/test design is still needed.
+
+## 23. Error Analysis
+
+The verified full-set error counts are 3 false positives and 23 false negatives for tuned ResNet at `.50`; the calibration evaluation half has 1 FP and 10 FN. The error notebook saves image-level FP/FN tables. Stronger analysis would categorize pose, occlusion, scale, blur, view, source, ambiguity, and confidence with a second reviewer; that completed taxonomy is not confirmed from available files.
+
+### Explainability used during error inspection
+
+Grad-CAM differentiates a class score with respect to a final convolutional feature map, globally averages gradients into channel weights, forms a weighted channel sum, applies ReLU, normalizes, resizes, and overlays a colormap. Here the target is `p` for Fall and `1-p` for No Fall; the inspected ResNet feature map is approximately `7x7` for a `224x224` input.
+
+`04_GradCAM_Analysis.ipynb` shows eight examples: correct Fall/No Fall plus FP/FN cases. It loads `models/final_resnet50.keras`, which is the baseline-style model, not `tuned_resnet50.keras`. Its manual forward path produces a score different from `model.predict` in a recorded example (`.8296` versus `.9004`), likely because the manually reconstructed path does not exactly preserve every functional preprocessing operation. Consequently, these overlays are useful exploratory evidence, not a faithful explanation of the deployed/tuned headline model.
+
+Grad-CAM is a localization aid, not proof of causal reasoning. A bright region can be coarse, unstable, or correlated with background. Validate explanations with occlusion tests, randomization checks, multiple layers/methods, and domain review.
+
+## 24. Grad-CAM Explainability
+
+Grad-CAM was implemented by differentiating a Fall/No-Fall target score against the ResNet backbone’s final spatial features, averaging gradients into channel weights, summing weighted maps, applying ReLU, normalizing, resizing, and overlaying at alpha `.4`. Eight correct/error examples were assembled. The notebook uses baseline-style `final_resnet50.keras`, and one recorded manual-path score (`.8296`) differs from `model.predict` (`.9004`), so it is not verified evidence for the tuned model.
+
+### Saved-artifact context
+
+Keras `.keras` files package architecture, weights, and metadata in a portable archive. Loading with `compile=False` avoids restoring training-only optimizer state and custom metrics for inference. The custom `ResNet50Preprocessing` layer is registered for serialization so the tuned model can be loaded without a manual `custom_objects` mapping.
+
+Verified model inventory includes baseline and tuned Custom CNN, MobileNetV3, and ResNet50 files. Direct loading reveals a critical naming/version mismatch:
+
+| File used for headline/deployment | Verified content |
+|---|---|
+| `models/tuned_resnet50.keras` | tuned model, 24,112,513 parameters, Dense-256 head, named preprocessing, partly trainable backbone |
+| `models/final_resnet50.keras` | baseline-style model, 23,589,761 parameters, frozen backbone, no Dense-256 head |
+| `streamlit_app/model/final_resnet50.keras` | deployment copy of the baseline-style model |
+
+Thus the app predicts with the baseline-style file while presenting tuned metrics in several panels. Fix by selecting one versioned champion, regenerating all associated metrics/explanations, storing a manifest with hash/class order/input contract, and testing that app and report hashes match.
+
+## 25. All Blockers and How They Were Resolved
+
+Verified blockers include: alphabetical directory labels caused probability-direction confusion (fixed by remapping labels while preserving `P(Fall)`); plotting after model load raised missing `history` state (fixed by loading saved CSV/JSON histories); ordinary Git could not appropriately carry the large model (Git LFS); the first push met pre-existing remote history (fetch/merge before push); Streamlit Cloud selected unsupported Python 3.14 for TensorFlow (redeploy on Python 3.12 with compatible pins); and dependency/protobuf compatibility required explicit versions. Still unresolved are the deployed-versus-tuned artifact mismatch, stale temperature summary, non-equivalent Grad-CAM path, and absence of an independent grouped test.
+
+### Streamlit architecture relevant to those blockers
+
+`streamlit_app/app.py` is a 689-line, 15-page dashboard. It resolves paths from `APP_DIR`, caches the Keras model with `@st.cache_resource`, caches tabular reads with `@st.cache_data`, preprocesses upload/camera images, and renders prediction plus project artifacts. Sidebar navigation covers home, live detection, workflow, dataset, models, training, comparison, evaluation, calibration, error analysis, Grad-CAM, blockers, stack, future work, and interview preparation.
+
+The dark/light theme is stored in `st.session_state`; CSS variables style the interface. `st.file_uploader` and `st.camera_input` supply RGB images. The app loads the model once per process, resizes input to `224x224`, creates a batch, calls `predict`, and interprets output as Fall probability. It should add explicit model/version display, threshold control with warning semantics, input validation, and an abstain state for out-of-domain images.
+
+Streamlit reruns the script on interaction. Resource caching is appropriate for models; data caching is appropriate for immutable CSV/history reads. Never cache user-specific sensitive frames globally without carefully scoped keys and retention rules.
+
+## 26. Streamlit Deployment
+
+The app is a multi-page-style single Streamlit script with upload/camera inference, artifact dashboards, theme state, CSS, and cached model/data loaders. Deployment inputs are GitHub repository, branch `main`, app path `streamlit_app/app.py`, requirements, configuration, and an LFS-fetched Keras artifact. Model loading uses a path derived from `APP_DIR`, which is safer than depending on the process working directory.
+
+### Dependency debugging
+
+The repository deploys through Streamlit Community Cloud from GitHub. The observed build initially used Python 3.14.6, for which the pinned TensorFlow stack had no compatible wheel. The remedy was to redeploy with Python 3.12 and use Cloud-compatible pins in `streamlit_app/requirements.txt`: Streamlit 1.47.1, `tensorflow-cpu` 2.20.0, Keras 3.15.0, protobuf 5.29.6, NumPy 1.26.4, pandas 2.3.3, and Pillow 10.4.0.
+
+Build debugging order: read the first terminal error; confirm Python version; verify wheel availability and mutually compatible pins; check the app entry path; check model/LFS availability; then inspect runtime memory and logs. `tensorflow-cpu` avoids unnecessary GPU packaging on CPU hosts. A successful dependency install does not guarantee sufficient RAM or that an LFS pointer was replaced by its binary.
+
+## 27. Git and GitHub
+
+The local repository tracks `main` against `https://github.com/garvitr5/Fall-Detection-POC.git`. Git stores source history; Git LFS stores large model content externally while Git commits a small pointer. The deployment model is LFS-tracked because ordinary GitHub pushes reject files above the normal hard size limit.
+
+Representative workflow:
+
+```powershell
+git status
+git add COMPLETE_PROJECT_INTERVIEW_GUIDE.md PROJECT_QUICK_REVISION.md
+git commit -m "Add complete project interview documentation"
+git push origin main
+```
+
+For a new large artifact, run `git lfs track "path/or-pattern"` **before** staging it and commit `.gitattributes`. Verify with `git lfs ls-files`. Do not commit datasets, virtual environments, secrets, or generated caches; `.gitignore` excludes the local data/model working directories while allowing the intended app artifact.
+
+## 28. Terminal and Environment Commands
+
+Commands supported by the repository/session history include:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r streamlit_app/requirements.txt
+streamlit run streamlit_app/app.py
+git init
+git branch -M main
+git lfs install --local
+git lfs track "streamlit_app/model/final_resnet50.keras"
+git remote add origin https://github.com/garvitr5/Fall-Detection-POC.git
+git add .
+git commit -m "Initial commit"
+git fetch origin
+git merge origin/main --allow-unrelated-histories
+git push -u origin main
+git status
+git log --oneline
+git lfs ls-files
+```
+
+The exact historical execution of the virtual-environment creation/install commands is not confirmed from saved shell history; they are the project’s valid setup commands. Never claim a command was executed merely because it is a conventional instruction.
+
+### Recommended testing commands and strategy
+
+Current evidence is notebook outputs and manual app behavior; a formal automated suite is not present. Highest-value tests are:
+
+1. Unit: class mapping, probability direction, preprocessing shape/range, threshold boundary, temperature transform, metric formulas.
+2. Artifact contract: model hash, input shape, output range, expected layer/head, class order, known-image predictions.
+3. Integration: load the LFS model in a clean environment and run one upload end to end.
+4. Data: file readability, duplicate/group leakage, class/source counts, label validity.
+5. UI: all pages render when optional CSV/image artifacts are absent; upload and camera states work in dark/light themes.
+6. Regression: champion metrics reproduced within tolerance from an immutable evaluation manifest.
+
+Use a tiny synthetic fixture in CI; do not require the full private dataset. Separately schedule an artifact-enabled smoke test when LFS credentials and memory are available.
+
+## 29. Requirements.txt
+
+`streamlit_app/requirements.txt` pins: Streamlit 1.47.1 for the UI/server; `tensorflow-cpu` 2.20.0 for inference; Keras 3.15.0 for model APIs/serialization; protobuf 5.29.6 for TensorFlow-compatible serialization internals; NumPy 1.26.4 for arrays; pandas 2.3.3 for result tables; and Pillow 10.4.0 for image decoding/conversion. Training notebooks additionally use scikit-learn, Matplotlib, seaborn, tqdm, and ImageHash, but those are not required by the deployed app. Pins improve reproducibility but need security maintenance.
+
+### Related safety and dependency concerns
+
+This is a proof of concept, not a certified medical device or emergency service. False negatives can delay help; false positives can cause alarm fatigue. The UI and README should state limitations, avoid autonomous emergency claims, and preserve human verification/escalation.
+
+Frames may contain identifiable people and private interiors. Obtain consent, minimize collection, encrypt transport/storage, define deletion periods, restrict access, and avoid logging raw uploads. Evaluate performance across age, mobility aids, clothing, skin tone, room type, pose, occlusion, camera location, and source domain. Security controls include dependency scanning, secret-free Git history, upload size/type validation, decompression-bomb protection, rate limiting, model provenance, and audit logs without sensitive pixels.
+
+## 30. Deployment to Streamlit Community Cloud
+
+Connect the GitHub repository, choose `main`, set `streamlit_app/app.py`, and select Python 3.12. Cloud installs `streamlit_app/requirements.txt`, fetches the LFS model, and launches Streamlit. Diagnose failures from the first terminal error: runtime/wheel compatibility, dependency conflicts, entry path, missing LFS content, then memory/runtime errors. The observed app URL is `https://fall-detection-poc.streamlit.app/`; current live health was not independently confirmed in this audit.
+
+### Deployment limitations and threats to validity
+
+- No independent test set; all reported results are validation-derived.
+- Mixed image sources may create domain shortcuts and duplicate/group leakage.
+- Frame classification ignores motion, duration, and temporal context.
+- Validation is only 361 images; rare-slice estimates have wide uncertainty.
+- Exact identity-level separation and source-level metrics are not established.
+- One duplicate appears to have been removed, but the confirmed record is incomplete.
+- Calibration reuses validation and did not improve the held-out half.
+- Grad-CAM uses the baseline-style model and a potentially non-equivalent forward path.
+- App model and displayed tuned metrics are inconsistent.
+- Fixed threshold 0.50 is not tied to a stated safety objective.
+- Cloud build success and current live availability were not independently verified during this documentation audit.
+
+These do not erase the work; they define what the evidence can support.
+
+## 31. Model Saving and Loading
+
+Training checkpoints save `.keras` artifacts through `ModelCheckpoint`; final/tuned/phase-one names capture experiment stages, although names alone are not proof of content. The app uses cached `keras.models.load_model(path, compile=False)`. The tuned ResNet custom preprocessing layer is registered for serialization. Always verify clean loading, class/input contract, head structure, a known prediction, and SHA-256. The currently deployed file is baseline-style despite its `final` name.
+
+### How this extends to a production-grade redesign
+
+Use subject/video/site-grouped train, calibration, and untouched test sets. Track immutable data manifests and provenance. Prefer a temporal pipeline: person detection/tracking, short clip buffering, pose/RGB feature extraction, temporal classifier, persistence/hysteresis, uncertainty gate, and human-confirmed alert workflow. Measure event-level sensitivity, false alarms per camera-hour, time-to-detect, and latency on target hardware.
+
+Package preprocessing with the model; publish a registry record containing version, hash, dataset version, metrics by slice, threshold, and approval state. Serve via a containerized API or optimized edge runtime, with observability for latency, input drift, alert rates, errors, and model version. Use staged rollout, rollback, incident review, periodic recalibration, and explicit retraining triggers.
+
+## 32. Computational Requirements
+
+Training ResNet50 is the most memory/compute-intensive path; the project used batch size 16 versus 32 for CNN/MobileNet. Baseline local CPU measurements were about 6.81 ms/image for CNN, 6.97 ms for MobileNet, and 33.96 ms for ResNet, with saved sizes about 4.93, 4.15, and 90.65 MB respectively. Tuned-model latency and target-cloud peak RAM are not confirmed. GPU training can accelerate experiments; Streamlit Cloud inference uses the CPU package. Quantization, smaller backbones, batching discipline, and edge benchmarking are future optimizations.
+
+### Improvements driven by compute constraints
+
+Immediate: align deployment with the evaluated model, regenerate calibration summary, make Grad-CAM use the same model/path, add an untouched test split, and create automated artifact-contract tests. Next: threshold optimization under a safety cost, source/slice evaluation, duplicate/group control, confidence intervals, and hard-negative mining. Longer term: video temporal modeling, pose fusion, multi-camera/site validation, quantization, edge benchmarking, and human-factors testing of alerts.
+
+## 33. Security, Safety, and Ethical Limitations
+
+This POC is not a certified medical device or emergency service. False negatives can delay help; false positives can create alarm fatigue. Images may identify people and private interiors, requiring consent, minimization, encryption, access controls, retention/deletion rules, and sensitive-log avoidance. Evaluate demographic, mobility-aid, clothing, room, pose, occlusion, camera, and site/source slices. Secure uploads, dependencies, secrets, artifact provenance, and rate limits.
+
+### How to present these limitations
+
+### 30-second version
+
+“I built an image-based fall-detection proof of concept using a custom CNN and ImageNet-pretrained MobileNetV3 and ResNet50. I combined three labeled sources into 1,123 training and 361 validation images, handled imbalance, evaluated ranking and class-specific metrics, and built a Streamlit dashboard. Tuned ResNet ranked best at 92.8% validation accuracy and .985 PR-AUC, but the audit also found no independent test set and an app/model-version mismatch, so I would not claim production readiness.”
+
+### Two-minute version
+
+Explain the safety motivation, explicit `No Fall=0/Fall=1` contract, source construction, baselines, transfer learning/fine-tuning, class weighting, full metric table, label-direction debugging, calibration result, Grad-CAM limitations, Streamlit/Git-LFS deployment, and next steps. Lead with the system and evidence; end with honest limitations and what you personally learned.
+
+### Resume bullets
+
+- Built and compared Custom CNN, MobileNetV3, and ResNet50 fall classifiers using TensorFlow/Keras; best validation run reached 92.8% accuracy and .985 PR-AUC on 361 images.
+- Diagnosed class-index/probability-direction errors, analyzed FP/FN cases, tested temperature scaling, and implemented Grad-CAM-based inspection.
+- Developed a dark/light Streamlit dashboard and deployed a Git-LFS-managed Keras artifact through GitHub/Streamlit Cloud.
+
+## 34. Design Decisions and Defence
+
+ResNet50 offered the strongest ranking but was much larger/slower than MobileNetV3. Transfer learning reduced data requirements but imports ImageNet/domain bias. Class weights preserve data diversity but alter loss/probability behavior. A packaged preprocessing layer reduces serving drift but must be verified after serialization. PR-AUC is emphasized because Fall is the minority positive class; recall remains central because misses are costly. Streamlit accelerated demonstration, whereas a production alert system needs stronger API, privacy, monitoring, and reliability controls.
+
+## 35. Possible Interview Criticisms
+
+Expect: “Your validation set is not a test set”; “frames are not events”; “the data may leak subjects/sources”; “92.8% has no uncertainty”; “recall fell to 84.25%”; “the app model does not match the metrics”; “calibration worsened”; “Grad-CAM is not causal”; “`.50` is not a safety threshold”; and “Streamlit is a demo platform.” Agree precisely, explain what the current evidence supports, and give the concrete repair. Defensiveness is weaker than a scoped, technically credible limitation.
+
+### Audit basis for answering criticism
+
+Reviewed: root/app README and configuration files; requirements, `.gitignore`, `.gitattributes`, Streamlit config; `streamlit_app/app.py`; all ten notebooks; dataset folder/file counts; model archives and loaded architecture/parameter metadata; JSON/CSV histories; baseline/tuned metric tables; confusion matrices; temperature search/summary/RMSE tables; FP/FN CSVs; Grad-CAM observations; generated plot/image inventory; Git log/remotes/LFS listing; and available deployment logs supplied in the conversation.
+
+Not exhaustively visually reviewed: every source image, every generated plot pixel, every notebook cell output, and every binary weight tensor. Not available as verified evidence: subject identities, camera/session grouping, annotation policy documents, inter-rater agreement, a true test set, production monitoring, or current cloud-runtime health.
+
+## 36. Future Improvements
+
+Immediate: unify the champion artifact and regenerate every downstream result; correct the temperature summary; add contract tests. Next: group-separated train/calibration/test, source/slice metrics, confidence intervals, hard-negative review, and safety-cost threshold selection. Longer term: temporal RGB/pose modeling, event-level evaluation, edge optimization, site trials, drift monitoring, and a human-confirmed alert workflow.
+
+### Verified basis for prioritization
+
+**Verified:** final folder counts are 1,123 train and 361 validation; tuned metrics table reports 92.80% accuracy/.9851 PR-AUC; correct output semantics are `P(Fall)`; the tuned and deployed model files differ; temperature search optimum is 1.06; app contains 15 pages and model/data caching.
+
+**Reasonable inference:** the Grad-CAM score discrepancy is likely a preprocessing/path mismatch; the one-image validation count reduction likely followed duplicate cleanup. These are not proven because a definitive change record is absent.
+
+**Missing:** independent test results, event/video evaluation, group splits, confidence intervals, target-device benchmarks, formal test suite, and a model card/data card.
+
+**Conflicts to fix:** deployed baseline-style file versus tuned headline metrics; `temperature_summary.csv` value 5.0 versus search optimum 1.06; Grad-CAM baseline model versus tuned narrative; early erroneous class-direction outputs retained in notebook history.
+
+## 37. Line-by-Line Code Explanation
+
+The codebase’s repeated execution pattern is: import dependencies; define `Path` locations/config; construct deterministic datasets; augment only training; build/load a model; compile when training; fit with weights/callbacks; predict with stable ordering; remap labels to Fall-positive convention; calculate/save metrics and plots; then load those artifacts in Streamlit. In the app, `main()` configures the page/theme, `render_sidebar()` returns navigation, page functions read artifacts or call shared inference, `load_model()` is resource-cached, `load_csv_safely()` is data-cached, `preprocess_image()` produces the model batch, and `predict_fall()` applies the output contract.
+
+Every important library call and architecture block is explained in Chapters 3–15; the exact app function inventory is explained in Chapters 25–26. Ten notebooks contain mostly code and little Markdown, so a literal narration of all generated notebook JSON would be less useful than following each executable pipeline in order. Code not evidenced in the repository is not attributed to the project.
+
+### Recommended repair checklist produced from that review
+
+1. Promote one versioned champion model and record SHA-256, input contract, class map, threshold, and metrics.
+2. Copy that exact artifact to the app or load it from a controlled registry; assert its hash at startup.
+3. Re-run evaluation, calibration, errors, and Grad-CAM with the champion and one shared inference function.
+4. Regenerate or remove stale `temperature_summary.csv`; do not advertise calibration improvement.
+5. Create group-separated train/calibration/test manifests and freeze the test set.
+6. Add unit, integration, data-contract, and Streamlit smoke tests.
+7. Document duplicate removal and annotation review.
+8. Select threshold against a written safety/cost requirement and report uncertainty/slices.
+9. Add privacy, limitation, and non-emergency disclaimers.
+10. Tag a reproducible release and verify a clean cloud build.
+
+## 38. Interview Question Bank (150)
+
+Each entry gives a short answer (`A`), deeper point (`D`), likely follow-up (`F`), and common mistake (`M`).
+
+### Project and data (Q1-Q25)
+
+**Q1. What problem does the project solve?** A: Binary Fall/No-Fall classification from one image. D: It is a POC component, not end-to-end emergency detection. F: Why is video preferable? M: Calling it a medical device.
+
+**Q2. What is the input/output contract?** A: RGB `224x224` image to scalar `P(Fall)`. D: Class map is No Fall=0, Fall=1. F: How enforce it? M: Inferring semantics from folder order.
+
+**Q3. How large is the dataset?** A: 1,123 train and 361 validation images. D: Train has 439 Fall/684 No Fall; validation 146/215. F: Is there a test set? M: Saying validation is test.
+
+**Q4. Which sources were used?** A: Fall Dataset, falldataset.com frames, and selected HAR activities. D: Source rules and sampling differ. F: What bias can mixing add? M: Treating sources as IID.
+
+**Q5. How were falldataset.com labels mapped?** A: class 3 to Fall; 1/2/4 to No Fall; 0/5/6 dropped. D: Frames were subsampled by class/split. F: Why drop classes? M: Inventing meanings not documented.
+
+**Q6. How was HAR used?** A: Selected non-fall activities supplied negative examples. D: Sleeping was sampled more heavily than other activities. F: Why include sleeping? M: Assuming every lying pose is a Fall.
+
+**Q7. Why is class imbalance important?** A: The majority class can dominate accuracy/loss. D: Fall prevalence is about 39% train and 40% validation. F: Is this severe? M: Claiming balance makes class metrics unnecessary.
+
+**Q8. How did you handle imbalance?** A: Balanced class weights during training. D: weights are about .821 No Fall and 1.279 Fall. F: Alternative methods? M: Applying weights at inference.
+
+**Q9. Why explicit class names?** A: To make label indices deterministic. D: The later AUC reversal showed why contracts matter. F: Where store the map? M: Trusting alphabetical order.
+
+**Q10. How was duplicate leakage checked?** A: Perceptual hashes with Hamming distance up to four. D: 41 candidate pairs were flagged in the earlier scan. F: Does that prove no leakage? M: Equating candidates with confirmed duplicates.
+
+**Q11. What happened after duplicate review?** A: Current validation is one image smaller than the earlier 362 count. D: The exact removal record is incomplete. F: How improve traceability? M: Claiming exactly which image was removed.
+
+**Q12. What is source leakage?** A: Learning camera/source signatures instead of falling. D: Mixed datasets can make source correlate with class. F: How test it? M: Checking only exact duplicates.
+
+**Q13. What is subject leakage?** A: The same person appearing across splits. D: It inflates generalization estimates. F: Preferred split? M: Random frame splitting from videos.
+
+**Q14. Why is no independent test set serious?** A: Validation influenced decisions, so it is optimistic. D: Calibration also reused validation. F: Correct split design? M: Renaming validation as test.
+
+**Q15. What EDA matters most?** A: Counts, corrupt files, dimensions, sources, labels, duplicates, and representative images. D: Slice distributions matter for safety. F: What else for videos? M: Showing only class bars.
+
+**Q16. What did the blur test assess?** A: Whether coarse background/source cues alone predict labels. D: It used blurred/downsampled pixels and logistic regression. F: Result? M: Calling it a leakage guarantee.
+
+**Q17. What was the blur-test result?** A: 55.4% accuracy and 49.0% balanced accuracy. D: Near-chance balanced accuracy weakens one shortcut hypothesis. F: Why accuracy higher? M: Saying all leakage is absent.
+
+**Q18. Why resize to 224?** A: It matches standard transfer-model input and controls compute. D: Resizing can distort aspect ratio. F: Alternative? M: Claiming it preserves every detail.
+
+**Q19. Why use RGB?** A: Pretrained ImageNet backbones expect three channels. D: Color can help or create shortcuts. F: Test grayscale how? M: Passing BGR silently.
+
+**Q20. What augmentation was used?** A: Flip, small rotation, zoom, and contrast. D: It encodes plausible invariances. F: Why avoid large rotations? M: Applying augmentation to validation.
+
+**Q21. Why horizontal flip?** A: Falling direction is usually left-right invariant. D: It doubles pose orientation diversity conceptually. F: When unsafe? M: Flipping semantically directional text/medical sides blindly.
+
+**Q22. Why limited augmentation?** A: Aggressive transforms could create unrealistic body/camera geometry. D: Augmentation should match deployment variability. F: How tune it? M: Assuming more is always better.
+
+**Q23. How check corrupt images?** A: Attempt decode/verify and log paths before training. D: Runtime skip policies must not hide systematic failures. F: What about truncated files? M: Waiting for `fit()` to crash.
+
+**Q24. What data documentation is missing?** A: Identity grouping, annotation policy, consent, provenance manifests, and reviewer agreement. D: These limit safety claims. F: What artifact would help? M: Treating folder names as full documentation.
+
+**Q25. How would you redesign splits?** A: Group by subject/video/site into train, calibration, and untouched test. D: Preserve source/class coverage without cross-group overlap. F: What if groups are unknown? M: Randomly splitting neighboring frames.
+
+### Models and training (Q26-Q75)
+
+**Q26. Describe the custom CNN.** A: Four Conv-BN-Pool blocks, GAP, Dense-128, dropout, sigmoid. D: Filters grow 32 to 256. F: Why GAP? M: Calling it pretrained.
+
+**Q27. Why batch normalization?** A: It stabilizes activations and optimization. D: Train/inference statistics differ. F: Why freeze BN in fine-tuning? M: Forgetting its moving state.
+
+**Q28. Why ReLU?** A: Cheap nonlinearity with useful gradients. D: It can produce dead units. F: Alternatives? M: Saying it prevents all vanishing gradients.
+
+**Q29. Why max pooling?** A: Downsamples spatial maps and adds local invariance. D: It may discard fine pose details. F: Alternative? M: Pooling after the classifier.
+
+**Q30. Why global average pooling?** A: It replaces a large flatten layer with per-channel summaries. D: Fewer parameters reduce overfitting. F: Trade-off? M: Claiming it retains exact location.
+
+**Q31. Why dropout?** A: Random unit removal regularizes co-adaptation during training. D: It is disabled at inference. F: Used rates? M: Expecting deterministic train outputs.
+
+**Q32. Why sigmoid output?** A: One scalar models binary positive probability. D: BCE pairs naturally with it. F: Two-softmax alternative? M: Thresholding logits as probabilities.
+
+**Q33. Why binary cross-entropy?** A: It is the Bernoulli negative log-likelihood. D: It strongly penalizes confident wrong predictions. F: Formula? M: Using categorical labels without reason.
+
+**Q34. Why Adam?** A: Adaptive moments provide a strong default optimizer. D: LR still matters greatly. F: Why not SGD? M: Saying Adam needs no tuning.
+
+**Q35. What was the CNN learning rate?** A: `.001`. D: ReduceLROnPlateau could lower it on stalled validation loss. F: Minimum LR? M: Confusing phase-two LR.
+
+**Q36. Why transfer learning?** A: Reuse general visual features when labeled data is small. D: It improves sample efficiency but adds domain assumptions. F: When fail? M: Saying ImageNet features are unbiased.
+
+**Q37. Why MobileNetV3?** A: It targets efficient inference with a small footprint. D: It traded some accuracy for speed/size. F: Where deploy it? M: Claiming it beat ResNet here.
+
+**Q38. Why ResNet50?** A: Residual connections enable a deep, strong visual backbone. D: It delivered best ranking but is heavier. F: What is a residual block? M: Ignoring latency.
+
+**Q39. What is a skip connection?** A: It adds an identity/shortcut path to a learned residual. D: This improves gradient flow. F: Shape mismatch handling? M: Calling it concatenation.
+
+**Q40. What was baseline ResNet performance?** A: 88.09% accuracy, 97.26% Fall recall, .9659 PR-AUC. D: It had 39 FP and only 4 FN. F: Safety trade-off? M: Quoting tuned numbers.
+
+**Q41. What was tuned ResNet performance?** A: 92.80% accuracy, 97.62% precision, 84.25% recall, .9851 PR-AUC. D: Matrix is TN212/FP3/FN23/TP123. F: Why recall fell? M: Hiding missed Falls.
+
+**Q42. Which model would you choose?** A: Depends on miss cost, false-alert budget, latency, and device. D: ResNet ranks best; MobileNet is leaner. F: What threshold? M: Choosing by accuracy alone.
+
+**Q43. How did MobileNet improve?** A: Accuracy rose from 69.81% to 78.12%; PR-AUC from .7165 to .8401. D: Recall remained high near 89%. F: Is it production-ready? M: Ignoring test absence.
+
+**Q44. How did custom CNN improve?** A: Recall rose substantially, but overall discrimination remained weak. D: Tuned ROC-AUC was .5913. F: What does that imply? M: Calling 58.45% strong.
+
+**Q45. What is frozen-feature training?** A: Train only the new head while backbone weights stay fixed. D: It protects pretrained features early. F: Next phase? M: Assuming BN cannot update.
+
+**Q46. What is fine-tuning?** A: Unfreeze selected backbone layers and train at low LR. D: It adapts higher-level features to Falls. F: Why lower LR? M: Unfreezing all layers at `.001` immediately.
+
+**Q47. How many final layers were nominally unfrozen?** A: The last 30. D: BatchNorm stayed frozen, so tuned ResNet had 21 actually trainable backbone layers. F: Why distinction? M: Reporting 30 trainable layers.
+
+**Q48. Why freeze BatchNorm?** A: Small batches can corrupt moving statistics. D: Keep its inference behavior stable while tuning other weights. F: Alternative? M: Setting only `model.trainable` carelessly.
+
+**Q49. What was fine-tuning LR?** A: `1e-5`. D: It limits catastrophic forgetting. F: How choose it? M: Confusing it with head LR.
+
+**Q50. What is catastrophic forgetting?** A: Large updates overwrite useful pretrained features. D: Gradual unfreezing/low LR reduce it. F: How detect it? M: Assuming more trainable layers always help.
+
+**Q51. Why L2 regularization?** A: Penalize large dense weights to reduce overfitting. D: Tuned heads use `1e-4`. F: L2 versus dropout? M: Applying it as an evaluation metric.
+
+**Q52. What callbacks were used?** A: checkpoint, early stopping, LR reduction, and CSV logging. D: Best model monitored validation PR-AUC. F: Why save best? M: Using final epoch blindly.
+
+**Q53. Why monitor PR-AUC?** A: It focuses on minority-positive ranking and alert quality. D: More informative than accuracy under imbalance. F: Limitation? M: Treating it as a threshold metric.
+
+**Q54. Why also monitor val loss?** A: It drives LR reduction and reflects probability quality. D: PR-AUC and log-loss can move differently. F: Which selects checkpoint? M: Assuming every callback monitors same value.
+
+**Q55. What does early stopping do?** A: Stops after no meaningful validation improvement. D: Here patience 5 and best weights restored. F: Risk? M: Saying it guarantees optimum.
+
+**Q56. What does ReduceLROnPlateau do?** A: Multiplies LR by .2 after stalled val loss. D: Minimum is `1e-7` in tuned runs. F: Why useful? M: Changing optimizer without recompiling fine-tuning.
+
+**Q57. Why checkpoint by max PR-AUC?** A: Preserve best ranking epoch even if later epochs regress. D: It aligns with the selected evaluation focus. F: What about calibration? M: Assuming max AUC gives best threshold.
+
+**Q58. What batch sizes were used?** A: 32 for CNN/MobileNet, 16 for ResNet. D: The heavier model needs more memory. F: Batch-size effects? M: Saying batch size changes only speed.
+
+**Q59. Why set seeds?** A: Improve repeatability of initialization/shuffle/splits. D: GPU kernels may remain nondeterministic. F: What else log? M: Claiming a seed ensures full reproducibility.
+
+**Q60. What is `prefetch`?** A: Overlap input preparation with model execution. D: `AUTOTUNE` selects a pipeline buffer. F: Does it change labels? M: Calling it data augmentation.
+
+**Q61. Why shuffle training only?** A: Random batches aid SGD; evaluation order must map to file paths. D: Deterministic validation enables error tables. F: What about class balance per batch? M: Shuffling validation then joining filenames.
+
+**Q62. What is ImageNet preprocessing?** A: Backbone-specific pixel transformation matching pretraining. D: ResNet and MobileNet contracts differ. F: Where should it live? M: Dividing by 255 twice.
+
+**Q63. Why package preprocessing in the model?** A: Prevent training-serving drift. D: Serialization makes the artifact self-contained. F: Remaining risk? M: Also preprocessing externally without checking.
+
+**Q64. What is training-serving skew?** A: Different transforms or class semantics between notebooks and app. D: This project’s artifact mismatch is a related versioning skew. F: Prevention? M: Testing only shape.
+
+**Q65. How many parameters in the tuned ResNet?** A: 24,112,513 total. D: Parameter count is not model file size exactly. F: Baseline-style count? M: Quoting 216 MB as parameters.
+
+**Q66. Why is ResNet slower?** A: More/deeper convolutions and larger activation compute. D: Baseline measured about 33.96 ms/image versus roughly 6.97 ms for MobileNet locally. F: Hardware caveat? M: Treating one benchmark as universal.
+
+**Q67. What is a model parameter?** A: A learned weight or bias/state value. D: Trainable and non-trainable counts differ. F: Are BN statistics trainable? M: Equating layers with parameters.
+
+**Q68. What is an epoch?** A: One pass over the training dataset. D: Augmentation makes samples vary across epochs. F: What is a step? M: Calling one batch an epoch.
+
+**Q69. What is overfitting?** A: Training improves while held-out performance degrades. D: Small mixed-source data raises risk. F: Remedies? M: Diagnosing it from one metric point.
+
+**Q70. What is underfitting?** A: Both training and validation performance remain poor. D: Custom CNN discrimination suggests limited fit/generalization. F: Remedies? M: Adding dropout automatically.
+
+**Q71. How interpret noisy curves?** A: Could reflect small validation size, batch noise, or high LR. D: Use trends and repeated runs, not single spikes. F: What log helps? M: Cherry-picking one epoch.
+
+**Q72. Why save history CSV/JSON?** A: Recreate curves and audit epochs without retraining. D: It avoids the `history` NameError after loading a model. F: What else save? M: Expecting `.keras` to expose Python `History`.
+
+**Q73. Why did `history` cause NameError?** A: Loading a model does not recreate the variable returned by `fit`. D: History is run metadata, not inference state. F: Fix? M: Retraining just to plot.
+
+**Q74. How ensure reproducible experiments?** A: Freeze code/data manifests, dependencies, seeds, configs, hashes, and outputs. D: Record hardware and split groups. F: Tooling? M: Relying on notebook execution order.
+
+**Q75. What experiment-tracking improvement would you add?** A: MLflow/W&B or structured local manifests. D: Log params, metrics, artifacts, hashes, and lineage. F: Why not filenames only? M: Overwriting `final_model`.
+
+### Evaluation, explainability, and deployment (Q76-Q150)
+
+**Q76. Define precision.** A: `TP/(TP+FP)`. D: Of alerts, how many were real Falls. F: When prioritize it? M: Calling it detection coverage.
+
+**Q77. Define recall.** A: `TP/(TP+FN)`. D: Of real Falls, how many were caught. F: Why safety-critical? M: Calling it alert trust.
+
+**Q78. Define specificity.** A: `TN/(TN+FP)`. D: Ability to clear No-Fall frames. F: Relation to FPR? M: Swapping it with precision.
+
+**Q79. Define F1.** A: Harmonic mean of precision and recall. D: It ignores TN and assumes equal P/R importance. F: When use F-beta? M: Averaging P and R arithmetically.
+
+**Q80. Why not accuracy alone?** A: It hides class-specific failures and imbalance. D: A safety system can be accurate while missing Falls. F: Better dashboard? M: Removing accuracy entirely.
+
+**Q81. What is ROC-AUC?** A: Probability a random positive ranks above a random negative. D: It integrates TPR/FPR over thresholds. F: Weakness? M: Treating it as accuracy.
+
+**Q82. What is PR-AUC?** A: Area under precision-recall trade-off. D: It focuses on positive detection and prevalence matters. F: Baseline level? M: Comparing across different prevalences casually.
+
+**Q83. What is log-loss?** A: Mean negative log probability of true labels. D: Confident mistakes are penalized strongly. F: Why clip probabilities? M: Computing `log(0)`.
+
+**Q84. What does the confusion matrix show?** A: Counts of TN, FP, FN, TP at a threshold. D: Orientation must be stated. F: Tuned matrix? M: Swapping rows/columns.
+
+**Q85. Why report support?** A: It gives the denominator behind per-class metrics. D: Small support means high uncertainty. F: How quantify uncertainty? M: Comparing raw counts only.
+
+**Q86. What threshold was used?** A: 0.50. D: It is conventional, not safety-optimized. F: How select one? M: Assuming calibrated probability implies .5 optimum.
+
+**Q87. Effect of lowering threshold?** A: Usually increases recall and false positives. D: It moves along operating curves. F: How constrain it? M: Claiming every individual score changes.
+
+**Q88. How choose a safety threshold?** A: Minimize validated cost subject to recall/false-alarm requirements. D: Use untouched data and confidence bounds. F: Whose costs? M: Optimizing on test repeatedly.
+
+**Q89. Why is baseline ResNet interesting?** A: It caught 142/146 Falls but raised 39 false alarms. D: It may suit recall-first operation after threshold analysis. F: Compare tuned? M: Declaring tuned universally superior.
+
+**Q90. Why did tuned recall fall?** A: Its score distribution/decision boundary favored specificity at .5. D: Training/checkpoint objectives do not fix one threshold outcome. F: Could threshold recover it? M: Blaming class count without analysis.
+
+**Q91. What is calibration?** A: Agreement between stated probability and empirical frequency. D: It differs from ranking. F: Calibration plot? M: Equating high AUC with calibrated scores.
+
+**Q92. What is temperature scaling?** A: Divide logits by a learned scalar before sigmoid. D: It preserves ranking for positive T. F: Does AUC change? M: Scaling probabilities directly.
+
+**Q93. What temperature was supported?** A: 1.06 from the search artifact. D: The summary CSV’s 5.0 is stale/conflicting. F: App implication? M: Repeating 5.0 uncritically.
+
+**Q94. Did calibration help?** A: No on the evaluation half; log-loss/RMSE slightly worsened. D: AUC and .5 decisions stayed effectively unchanged. F: Why retain result? M: Claiming all post-hoc calibration fails.
+
+**Q95. Why split calibration/evaluation?** A: Avoid evaluating the fitted temperature on the same samples. D: Both still originate from validation, so no true test. F: Better design? M: Calling 181 samples independent test data.
+
+**Q96. Why clip before logit?** A: Avoid infinities at probabilities zero/one. D: `1e-7` bounds numerical extremes. F: Effect? M: Clipping labels.
+
+**Q97. Why can AUC be .0098?** A: Scores were interpreted in the reversed class direction. D: Reversing scores gives roughly `1-AUC`. F: Correct fix? M: Inverting labels and probabilities together blindly.
+
+**Q98. How prevent label reversal?** A: One explicit prediction contract plus known-example tests and metadata. D: Check class maps at train/evaluation/serve boundaries. F: CI test? M: Relying on variable name `prediction`.
+
+**Q99. What is error analysis?** A: Structured study of FP/FN patterns and confidence. D: It guides data, threshold, and architecture changes. F: Useful slices? M: Displaying only easy correct examples.
+
+**Q100. Which error is costlier?** A: Usually FN for Falls, but requirements must define costs. D: FP alert fatigue can also make a system unsafe. F: How encode costs? M: Saying FP never matters.
+
+**Q101. What is Grad-CAM?** A: Gradient-weighted localization over convolutional features. D: Channel weights are pooled target gradients. F: Why ReLU? M: Calling it pixel segmentation.
+
+**Q102. What layer does Grad-CAM need?** A: A spatial convolutional feature map, often the last one. D: Later maps are semantic but coarse. F: Earlier-layer trade-off? M: Using the scalar output as a heatmap.
+
+**Q103. How is the heatmap formed?** A: Weight channels by pooled gradients, sum, ReLU, normalize, resize. D: Overlay alpha was .4. F: Why normalize? M: Treating colors as probabilities.
+
+**Q104. Why inspect both classes?** A: Evidence for Fall and No Fall may differ. D: Here target is `p` versus `1-p`. F: Multi-class version? M: Using the same target score always.
+
+**Q105. Main Grad-CAM limitation here?** A: It uses the baseline-style model, not tuned headline model. D: Manual forward score also differed from prediction. F: Fix? M: Presenting it as deployed-model proof.
+
+**Q106. Does Grad-CAM prove causality?** A: No; it is a local sensitivity visualization. D: Correlated background can still light up. F: Validation tests? M: Saying attention equals reasoning.
+
+**Q107. What are randomization checks?** A: Heatmaps should degrade when weights/labels are randomized. D: They test whether explanations depend on learned parameters. F: Other methods? M: Judging only visual appeal.
+
+**Q108. What model does the app load?** A: `streamlit_app/model/final_resnet50.keras`. D: It is verified baseline-style. F: What metrics does UI show? M: Assuming filename means tuned.
+
+**Q109. What is the deployment mismatch?** A: App predicts with baseline-style model while panels advertise tuned metrics. D: This breaks artifact-performance traceability. F: Repair? M: Merely renaming the file.
+
+**Q110. How verify model identity?** A: Hash plus architecture/head/class/input manifest. D: Assert it at app startup and evaluation. F: Why hash? M: Comparing file size only.
+
+**Q111. Why `compile=False` when loading?** A: Inference does not require optimizer/loss restoration. D: It avoids custom training-object issues and overhead. F: When compile? M: Thinking it removes weights.
+
+**Q112. What is Keras serialization risk?** A: Custom layers/version changes may fail or change behavior. D: Register custom objects and smoke-test clean loads. F: Safer format practice? M: Pickling arbitrary code casually.
+
+**Q113. What does `st.cache_resource` do?** A: Reuses expensive resource objects like the model across reruns. D: Resource mutation/thread behavior needs care. F: Why not data cache? M: Reloading weights per click.
+
+**Q114. What does `st.cache_data` do?** A: Caches data-returning functions based on inputs/code. D: Good for CSV/history artifacts. F: Invalidation? M: Caching sensitive uploads globally.
+
+**Q115. Why does Streamlit rerun?** A: Widget interaction executes the script top to bottom. D: Session state preserves per-session UI choices. F: What state is used? M: Treating it like a persistent server loop.
+
+**Q116. What upload paths exist?** A: File uploader and camera input. D: Both should converge on the same preprocessing/prediction function. F: Validation? M: Duplicating inference logic.
+
+**Q117. What UI improvement matters most?** A: Show model version/limitations and make alert semantics unambiguous. D: Add uncertainty/threshold controls cautiously. F: Why no raw confidence alone? M: Using color as the only signal.
+
+**Q118. Why dark mode?** A: User preference and low-light dashboard usability. D: CSS variables maintain two consistent themes. F: Accessibility check? M: Low-contrast gray text.
+
+**Q119. What accessibility checks apply?** A: Contrast, keyboard focus, labels, non-color status, responsive text. D: Camera/upload and charts need meaningful alternatives. F: Standard? M: Assuming dark automatically means accessible.
+
+**Q120. Why Streamlit?** A: Fast Python-native ML demo development. D: Excellent POC ergonomics, limited compared with production service architecture. F: When migrate? M: Calling it inherently scalable.
+
+**Q121. Why did Cloud dependency install fail?** A: Python 3.14 lacked a compatible TensorFlow wheel. D: Native/ABI availability is version-specific. F: Fix? M: Randomly changing app code.
+
+**Q122. Why Python 3.12?** A: It has compatible wheels for the pinned stack. D: Runtime choice is part of reproducibility. F: Where configure it? M: Assuming latest Python always works.
+
+**Q123. Why `tensorflow-cpu`?** A: Cloud host uses CPU and does not need GPU runtime packages. D: It can simplify install/size. F: Performance effect? M: Expecting CUDA acceleration.
+
+**Q124. Why pin dependencies?** A: Reproduce compatible builds. D: Pins require planned security upgrades. F: Lockfile alternative? M: Pinning incompatible versions.
+
+**Q125. What is protobuf relevance?** A: TensorFlow depends on compatible protobuf APIs. D: Mismatched major versions can break install/runtime. F: How diagnose? M: Upgrading one transitive package blindly.
+
+**Q126. What is Git LFS?** A: Git stores pointers while large binary content lives in LFS storage. D: Clone/deploy must fetch the object. F: Verify command? M: Assuming pointer is the model.
+
+**Q127. Why use LFS here?** A: The Keras model exceeds comfortable ordinary Git limits. D: GitHub rejects very large regular blobs. F: Track command? M: Tracking after committing the blob.
+
+**Q128. How verify LFS?** A: `git lfs ls-files` and inspect deployment clone/object. D: A pointer file begins with LFS specification text. F: Cloud symptom? M: Loading a pointer with Keras.
+
+**Q129. What should `.gitignore` exclude?** A: environments, caches, secrets, local data, unneeded large outputs. D: Keep reproducible source/config/selected artifacts. F: What about model? M: Ignoring already-tracked files and expecting removal.
+
+**Q130. What is a safe Git workflow?** A: status, focused add, review diff, commit, pull/reconcile, push. D: Avoid mixing private data or unrelated changes. F: Non-fast-forward? M: Force-pushing by default.
+
+**Q131. What caused the first push rejection?** A: Remote already had unrelated initial history/content. D: Fetch/merge reconciled histories before push. F: Alternative when appropriate? M: Deleting remote history blindly.
+
+**Q132. How handle secrets?** A: Never commit; use Streamlit secrets/environment and rotate leaks. D: Git history retains deleted secrets. F: If exposed? M: Adding to `.gitignore` after exposure only.
+
+**Q133. What privacy risk exists?** A: Images can identify people and interiors. D: Minimize, consent, encrypt, restrict, and delete. F: What should logs contain? M: Storing uploads for debugging by default.
+
+**Q134. What bias slices matter?** A: Age, mobility aids, body/skin/clothing, room, camera, occlusion, and source. D: Evaluate intersectional and site slices. F: Minimum support? M: Claiming fairness from aggregate accuracy.
+
+**Q135. Is this a medical device?** A: No, it is an experimental POC. D: Clinical/emergency claims require regulatory, reliability, and human-factors evidence. F: UI disclaimer? M: Promising emergency response.
+
+**Q136. What production metric replaces frame accuracy?** A: Event sensitivity and false alarms per camera-hour. D: Also time-to-detect and alert persistence. F: Why? M: Counting adjacent frames as independent events.
+
+**Q137. Why use video?** A: Motion and temporal context distinguish Falls from lying/sitting. D: It can suppress transient frame errors. F: Candidate models? M: Assuming video removes privacy issues.
+
+**Q138. Describe a temporal architecture.** A: detect/track person, encode frames/pose, classify a clip, apply hysteresis, alert. D: Evaluate at event level. F: GRU versus transformer? M: Averaging independent labels without timing logic.
+
+**Q139. What is hysteresis?** A: Different trigger/clear rules or persistence across frames. D: It reduces alert flicker. F: Latency trade-off? M: Calling it model calibration.
+
+**Q140. What is an abstain state?** A: Decline confident classification for poor/OOD input. D: Route to human review or request better view. F: How detect OOD? M: Treating abstention as No Fall.
+
+**Q141. What should monitoring track?** A: latency/errors, alert rates, score/input drift, versions, and confirmed outcomes. D: Avoid raw sensitive frames by default. F: Drift response? M: Monitoring accuracy without labels instantly.
+
+**Q142. What is data drift?** A: Input distribution changes from training. D: Camera/site/behavior shifts can degrade performance. F: Detection methods? M: Equating drift with guaranteed performance loss.
+
+**Q143. What is concept drift?** A: Relationship between inputs and labels changes. D: New behavior/care practices may alter Fall cues. F: Remedy? M: Using pixel histograms alone.
+
+**Q144. How would you test the inference contract?** A: Load champion, pass known RGB fixture, assert shape/range/class direction/hash. D: Compare notebook and app outputs. F: Tolerance? M: Only testing that no exception occurs.
+
+**Q145. What CI tests should run without the big model?** A: metric/mapping/preprocess unit tests and UI/data fallbacks with a stub. D: Schedule separate LFS smoke test. F: Why split? M: Skipping artifact tests forever.
+
+**Q146. How improve reproducibility?** A: immutable manifests, environment lock, versioned artifacts, deterministic split script, release tag. D: Include hardware and command lineage. F: Container? M: Uploading notebooks only.
+
+**Q147. Biggest verified project flaw?** A: The deployed model does not match displayed tuned metrics. D: It undermines the central demo claim. F: First fix? M: Hiding it in an interview.
+
+**Q148. Strongest technical learning?** A: Explicit label/probability contracts and artifact lineage matter as much as architecture. D: The AUC reversal and model mismatch demonstrate both. F: Process change? M: Saying only “ResNet is best.”
+
+**Q149. What would you do with one week?** A: Align artifacts, create grouped test manifest, rerun all reports, add contract tests, redeploy. D: Then select threshold with error costs. F: What would wait? M: Starting a new architecture first.
+
+**Q150. What claim can you defend?** A: On the current validation set, the saved tuned ResNet metrics are strongest. D: I cannot defend independent generalization or current app equivalence until repairs. F: Why is that a strength? M: Overclaiming production readiness.
+
+## 39. Thirty-Question Mock Interview
+
+Try these aloud before reading the answer key.
+
+1. Give the 30-second project overview.
+2. State the exact input, output, and class mapping.
+3. Describe the dataset and its sources.
+4. Why is the current split a limitation?
+5. What did the blur leakage experiment show?
+6. Explain the Custom CNN architecture.
+7. Why did transfer learning help?
+8. Compare MobileNetV3 and ResNet50.
+9. Explain the two-stage fine-tuning procedure.
+10. Why freeze BatchNorm?
+11. Why use class weights, and what were they?
+12. Why checkpoint on validation PR-AUC?
+13. State tuned ResNet’s main metrics and matrix.
+14. Why can accuracy be misleading here?
+15. Explain the precision-recall trade-off in safety terms.
+16. Diagnose the near-zero AUC incident.
+17. How did you correct probability direction safely?
+18. What did temperature scaling do, and did it help?
+19. Explain Grad-CAM in four steps.
+20. What is wrong with the current Grad-CAM evidence?
+21. Describe Streamlit’s inference and caching flow.
+22. What is the app/model metric mismatch?
+23. Why did Streamlit Cloud dependency installation fail?
+24. What role does Git LFS play?
+25. What automated tests would you add first?
+26. What ethical/privacy issues apply?
+27. How would you choose a production threshold?
+28. How would you redesign this as a video system?
+29. What is the most important next repair?
+30. What can and cannot you honestly claim?
+
+### Mock Interview Answer Key
+
+1. Three-model image Fall classifier, artifact analysis, and Streamlit POC; tuned ResNet has best validation ranking, with important evidence limits.
+2. RGB image resized to `224x224`; scalar output is `P(Fall)`; No Fall=0 and Fall=1.
+3. 1,123 train/361 validation from Fall Dataset, sampled falldataset.com frames, and selected HAR negatives.
+4. No independent test and likely subject/video/source correlation; validation shaped model decisions and calibration.
+5. Blurred low-resolution logistic regression was near chance in balanced accuracy; it did not prove leakage absent.
+6. Four Conv-BN-ReLU-MaxPool blocks, GAP, Dense-128, dropout, sigmoid.
+7. ImageNet features improved sample efficiency on a small dataset; fine-tuning adapted higher semantic layers.
+8. MobileNet is small/fast with lower metrics; ResNet is heavier/slower with stronger ROC/PR-AUC.
+9. Train a new head with frozen backbone, then unfreeze final non-BN layers, recompile at `1e-5`, and checkpoint/early-stop.
+10. Small batches can destabilize BN moving statistics, so freezing keeps pretrained normalization behavior.
+11. Weight minority Fall loss more: roughly .821 No Fall and 1.279 Fall.
+12. PR-AUC assesses positive ranking under imbalance and avoids selecting solely by majority-driven accuracy.
+13. Accuracy .928, precision .976, recall .842, PR-AUC .985; TN212/FP3/FN23/TP123.
+14. It combines classes and can conceal costly Fall misses.
+15. Lower threshold typically raises Fall recall and FP alerts; select against explicit miss/alert costs.
+16. Folder indices were mistaken for score semantics, reversing the ranking; `.0098` was approximately the complement of the true AUC.
+17. Convert directory labels to Fall-positive labels, keep model output as `P(Fall)`, and enforce known-sample contract tests.
+18. It divided logits by fitted `T`; search found 1.06, but held-half log-loss/RMSE slightly worsened.
+19. Differentiate target score to conv maps, pool gradients, weighted-sum/ReLU, normalize/overlay.
+20. It uses the baseline-style file and a manual path whose score differs from `predict`, not the tuned champion.
+21. Streamlit reruns; resource cache loads model once, data cache loads artifacts, upload/camera share preprocessing and prediction.
+22. App binary is baseline-style while dashboard text/tables advertise tuned results.
+23. Cloud selected Python 3.14, which lacked a compatible TensorFlow wheel; redeploy on 3.12 with compatible pins.
+24. It keeps the large Keras binary outside ordinary Git objects and commits a pointer; cloud must fetch LFS content.
+25. Mapping/preprocessing/metric units, champion hash/head contract, known prediction parity, clean LFS load, and UI smoke tests.
+26. Missed alerts, alarm fatigue, identifiable images/interiors, consent, bias, retention, access, and non-medical claims.
+27. On untouched grouped test data, optimize explicit expected cost or enforce minimum recall and max false-alert rate with uncertainty.
+28. Person detection/tracking plus RGB/pose clip encoder, temporal classifier, persistence/hysteresis, uncertainty gate, and event-level evaluation.
+29. Choose one champion and regenerate deployment, metrics, calibration, errors, and explanations from its immutable manifest.
+30. Defend recorded validation results; do not claim independent generalization, production safety, or that current app equals the tuned model.
+
+## 40. Quick Revision File
+
+The requested separate revision artifact is `PROJECT_QUICK_REVISION.md`. It contains the 30-second pitch, exact contract/counts, training recipe, architecture/result table, bugs, deployment, limitations, fixes, fast answers, and claims to avoid.
+
+### Final interview position
+
+The most credible presentation is not “I achieved 92.8%, therefore the system works.” It is: “I built a complete ML POC, measured several architectures, debugged a subtle label-direction issue, investigated calibration/explanations, deployed an interface, and then audited the evidence closely enough to find versioning and evaluation gaps.” That demonstrates modeling, software, debugging, and engineering judgment together.
+
+Use precise nouns: **validation result**, **Fall-positive probability**, **baseline-style deployment artifact**, **tuned ResNet artifact**, and **proof of concept**. When an interviewer presses, distinguish what the repository proves from what a production study must still establish.
