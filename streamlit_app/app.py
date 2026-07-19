@@ -34,7 +34,6 @@ PAGES = [
     "Blockers & Solutions",
     "Technology Stack",
     "Limitations & Future Scope",
-    "Interview Quick Revision",
 ]
 
 st.set_page_config(
