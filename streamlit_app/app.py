@@ -19,10 +19,13 @@ PROJECT_ROOT = APP_DIR.parent
 MODEL_PATH = APP_DIR / "model" / "final_resnet50.keras"
 IMAGE_SIZE = (224, 224)
 DECISION_THRESHOLD = 0.5
-PAGES = [
+PRIMARY_PAGES = [
     "Home",
     "Live Prediction",
     "Project Workflow",
+]
+WORKFLOW_PAGES = [
+    "Workflow Overview",
     "Dataset & EDA",
     "Model Architectures",
     "Training & Hyperparameters",
@@ -129,6 +132,37 @@ def apply_theme(theme: str) -> None:
         .stApp, [data-testid="stAppViewContainer"] {{ background:var(--app-bg); color:var(--text); }}
         [data-testid="stHeader"] {{ background:rgba(0,0,0,0); }}
         [data-testid="stSidebar"] {{ background:var(--surface); border-right:1px solid var(--border); }}
+        [data-testid="stSidebarContent"] {{ padding:1.25rem .85rem; }}
+        .sidebar-brand {{
+            padding:1rem; margin:0 0 1rem; border:1px solid var(--border);
+            border-radius:12px; background:linear-gradient(145deg, var(--surface-2), var(--surface));
+            box-shadow:var(--shadow);
+        }}
+        .sidebar-brand-icon {{
+            width:2.25rem; height:2.25rem; display:flex; align-items:center; justify-content:center;
+            margin-bottom:.75rem; border-radius:9px; background:var(--accent); color:#fff; font-size:1.2rem;
+        }}
+        .sidebar-brand-title {{ color:var(--text); font-size:1.05rem; font-weight:750; line-height:1.25; }}
+        .sidebar-brand-copy {{ color:var(--muted); font-size:.78rem; margin-top:.3rem; }}
+        .nav-section-label {{
+            color:var(--muted); font-size:.68rem; font-weight:750; letter-spacing:.11em;
+            text-transform:uppercase; margin:.35rem .5rem .25rem;
+        }}
+        .workflow-nav {{
+            border-left:2px solid var(--accent); margin:.15rem 0 .75rem .65rem;
+            padding:.55rem .7rem; background:var(--surface-2); border-radius:0 10px 10px 0;
+            color:var(--accent); font-size:.7rem; font-weight:750; letter-spacing:.08em;
+        }}
+        [data-testid="stSidebar"] [role="radiogroup"] label {{
+            padding:.42rem .55rem; border-radius:7px; transition:background .15s ease, color .15s ease;
+        }}
+        [data-testid="stSidebar"] [role="radiogroup"] label:hover {{ background:var(--surface-2); }}
+        [data-testid="stSidebar"] hr {{ margin:.85rem 0; }}
+        .model-badge {{
+            padding:.7rem .8rem; border:1px solid var(--border); border-radius:9px;
+            background:var(--surface-2); color:var(--muted); font-size:.76rem; line-height:1.55;
+        }}
+        .model-badge strong {{ color:var(--text); font-size:.8rem; }}
         [data-testid="stMainBlockContainer"] {{ max-width:1280px; padding-top:2rem; padding-bottom:4rem; }}
         h1,h2,h3,h4,p,label,[data-testid="stMarkdownContainer"] {{ color:var(--text); letter-spacing:0; }}
         .muted, .muted p {{ color:var(--muted) !important; }}
@@ -161,18 +195,53 @@ def apply_theme(theme: str) -> None:
 def render_sidebar() -> str:
     """Render persistent project identity, theme control, and page navigation."""
     with st.sidebar:
-        st.markdown("### Human Fall Detection")
-        st.caption("ResNet50 project dashboard")
+        st.markdown(
+            '<div class="sidebar-brand"><div class="sidebar-brand-icon">&#10010;</div>'
+            '<div class="sidebar-brand-title">Human Fall Detection</div>'
+            '<div class="sidebar-brand-copy">ResNet50 safety intelligence dashboard</div></div>',
+            unsafe_allow_html=True,
+        )
         if "theme" not in st.session_state:
             st.session_state.theme = "Dark"
         theme = st.toggle("Dark mode", value=st.session_state.theme == "Dark")
         st.session_state.theme = "Dark" if theme else "Light"
         st.divider()
-        page = st.radio("Navigate", PAGES, key="navigation")
+
+        st.markdown('<div class="nav-section-label">Navigate</div>', unsafe_allow_html=True)
+        primary_icons = {
+            "Home": "⌂  Home",
+            "Live Prediction": "⚡  Live Prediction",
+            "Project Workflow": "▦  Project Workflow",
+        }
+        primary_page = st.radio(
+            "Navigate",
+            PRIMARY_PAGES,
+            key="primary_navigation",
+            format_func=lambda option: primary_icons[option],
+            label_visibility="collapsed",
+        )
+
+        page = primary_page
+        if primary_page == "Project Workflow":
+            st.markdown(
+                '<div class="workflow-nav">PROJECT SECTIONS</div>',
+                unsafe_allow_html=True,
+            )
+            workflow_page = st.radio(
+                "Project sections",
+                WORKFLOW_PAGES,
+                key="workflow_navigation",
+                label_visibility="collapsed",
+            )
+            page = "Project Workflow" if workflow_page == "Workflow Overview" else workflow_page
+
         st.divider()
-        st.caption("Deployment model")
-        st.code("final_resnet50.keras", language=None)
-        st.caption("Academic prototype | Threshold 0.50")
+        st.markdown(
+            '<div class="model-badge"><strong>Deployment model</strong><br>'
+            'final_resnet50.keras<br>Decision threshold · 0.50</div>',
+            unsafe_allow_html=True,
+        )
+        st.caption("Academic prototype")
     return page
 
 
