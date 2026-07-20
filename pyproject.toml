@@ -1,7 +1,7 @@
 [project]
-name = "fall-detection"
+name = "safevison"
 version = "0.1.0"
-description = "Fall detection image classification project"
+description = "SafeVison human fall detection image classification project"
 authors = [
     { name = "Your Name", email = "you@example.com" }
 ]

@@ -1,7 +1,7 @@
-# Fall-Detection-POC
+# SafeVison
 
-A Streamlit interface for classifying still images with the trained ResNet50
-fall-detection model.
+SafeVison is a Streamlit interface for classifying still images with a trained
+ResNet50 human fall-detection model.
 
 ## Run locally
 
@@ -14,7 +14,8 @@ streamlit run streamlit_app/app.py
 
 1. Push this repository to GitHub, including
    `streamlit_app/model/final_resnet50.keras`.
-2. In Streamlit Community Cloud, create an app from the repository.
+2. In Streamlit Community Cloud, create an app from the repository and use
+   `safevison` as the app URL when it is available.
 3. Set the main file path to `streamlit_app/app.py`.
 4. Choose Python 3.12 in Advanced settings, then deploy.
 

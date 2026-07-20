@@ -1,4 +1,4 @@
-"""Interview-ready Streamlit dashboard for the Human Fall Detection project."""
+"""SafeVison Streamlit dashboard for image-based human fall detection."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ WORKFLOW_PAGES = [
 ]
 
 st.set_page_config(
-    page_title="Human Fall Detection System",
+    page_title="SafeVison | Fall Detection",
     page_icon=":material/health_and_safety:",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -197,8 +197,8 @@ def render_sidebar() -> str:
     with st.sidebar:
         st.markdown(
             '<div class="sidebar-brand"><div class="sidebar-brand-icon">&#10010;</div>'
-            '<div class="sidebar-brand-title">Human Fall Detection</div>'
-            '<div class="sidebar-brand-copy">ResNet50 safety intelligence dashboard</div></div>',
+            '<div class="sidebar-brand-title">SafeVison</div>'
+            '<div class="sidebar-brand-copy">AI-powered fall detection</div></div>',
             unsafe_allow_html=True,
         )
         if "theme" not in st.session_state:
@@ -290,7 +290,7 @@ def render_home_page() -> None:
     """Render project overview and verified headline results."""
     page_header(
         "Computer vision safety prototype",
-        "Human Fall Detection System",
+        "SafeVison",
         "An end-to-end binary image-classification project covering dataset analysis, transfer learning, fine-tuning, evaluation, calibration, error analysis, explainability, and Streamlit deployment.",
     )
     st.markdown(
@@ -707,7 +707,7 @@ def render_interview_page() -> None:
     """Render concise project-specific interview revision answers."""
     page_header("Preparation", "Interview Quick Revision", "Project-specific answers for explaining design decisions, results, trade-offs, and next steps without drifting into generic definitions.")
     answers = {
-        "Project in 30 seconds": "I built a binary Human Fall Detection image classifier and compared a Custom CNN, MobileNetV3, and ResNet50. After transfer learning and fine-tuning, ResNet50 reached 92.8% accuracy, 97.6% fall precision, and 99.0% ROC-AUC on 361 validation images. I then analyzed errors, tested temperature scaling, used Grad-CAM, and deployed the final model with Streamlit.",
+        "Project in 30 seconds": "I built SafeVison, a binary human fall detection image classifier, and compared a Custom CNN, MobileNetV3, and ResNet50. After transfer learning and fine-tuning, ResNet50 reached 92.8% accuracy, 97.6% fall precision, and 99.0% ROC-AUC on 361 validation images. I then analyzed errors, tested temperature scaling, used Grad-CAM, and deployed the final model with Streamlit.",
         "Project in 2 minutes": "The workflow begins with dataset consolidation, EDA, duplicate and blur checks, and an explicit 0 = No Fall / 1 = Fall mapping. I trained from-scratch and transfer-learning baselines, then tuned all three models with balanced class weights and augmentation. MobileNetV3 was efficient and recall-oriented; ResNet50 was selected for its overall tuned accuracy and precision. I kept calibration analysis separate because it used a different subset, inspected false alerts and missed falls, and used Grad-CAM to see whether attention aligned with the person and floor-contact regions. The deployed model embeds ResNet preprocessing and returns P(Fall).",
         "Why ResNet50?": "It provided the strongest tuned validation result and excellent probability ranking. Residual connections support deep feature learning while ImageNet weights reduce the amount of task-specific data required.",
         "Why transfer learning?": "The processed training set has 1,123 images, so learning all visual features from scratch is difficult. ImageNet initialization supplies reusable edges, textures, shapes, and object-level representations.",
